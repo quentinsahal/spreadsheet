@@ -33,15 +33,6 @@ const fetchSpreadsheet = async (
   return response.json();
 };
 
-// Utility to generate consistent color from username
-const getUserColor = (userName: string): string => {
-  const hash = userName
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const hue = hash % 360;
-  return `hsl(${hue}, 70%, 60%)`;
-};
-
 export function Spreadsheet() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

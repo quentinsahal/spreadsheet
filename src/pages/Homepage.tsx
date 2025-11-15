@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "./Connect.css";
+import "./Homepage.css";
 
-export function Connect() {
+export function Homepage() {
   const savedName = sessionStorage.getItem("userName");
   const [name, setName] = useState(savedName || "");
   const [step, setStep] = useState<"name" | "action">(

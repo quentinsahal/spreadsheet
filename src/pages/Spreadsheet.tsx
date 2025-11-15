@@ -77,7 +77,7 @@ export function Spreadsheet() {
     setRemoteUpdate(update);
   }, []);
 
-  const { isConnected, updateCell, selectCell } = useSpreadsheetConnector({
+  const { updateCell, selectCell } = useSpreadsheetConnector({
     url: "ws://localhost:4000",
     spreadsheetId: spreadsheetId ?? "",
     sync: handleSync,
@@ -117,21 +117,6 @@ export function Spreadsheet() {
     >
       <SpreadsheetHeader />
       <SpreadsheetCanvas />
-      {!isConnected && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            padding: "8px 16px",
-            background: "#ff4444",
-            color: "white",
-            borderRadius: "4px",
-          }}
-        >
-          Disconnected
-        </div>
-      )}
     </SpreadsheetProvider>
   );
 }

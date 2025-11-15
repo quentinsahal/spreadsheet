@@ -30,6 +30,7 @@ export interface WebSocketMessage {
     | "initialData"
     | "cellUpdated"
     | "cellFocused"
+    | "cellSelected"
     | "userJoined"
     | "userLeft"
     | "pong";
@@ -39,6 +40,34 @@ export interface WebSocketMessage {
   value?: string;
   userId?: string;
   userName?: string;
+  color?: string;
 }
 
 export type WebSocketMessageType = WebSocketMessage["type"];
+
+// Discriminated union for remote updates
+export type RemoteUpdate =
+  | {
+      type: "cellUpdate";
+      updates: Array<{ row: number; col: number; value: string }>;
+      timestamp: number;
+    }
+  | {
+      type: "userSelection";
+      userId: string;
+      userName: string;
+      row: number;
+      col: number;
+      color: string;
+    }
+  | {
+      type: "userLeft";
+      userId: string;
+    };
+
+export interface RemoteUserSelection {
+  userName: string;
+  row: number;
+  col: number;
+  color: string;
+}

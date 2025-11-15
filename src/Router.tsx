@@ -7,7 +7,7 @@ export function Router() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Connect />} />
-        <Route path="/spreadsheet/:id" element={<Spreadsheet />} />
+        <Route path="/spreadsheet/:id?" element={<Spreadsheet />} />
       </Routes>
     </BrowserRouter>
   );

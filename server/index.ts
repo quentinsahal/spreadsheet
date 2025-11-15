@@ -17,6 +17,17 @@ const spreadsheets = new Map<string, Map<string, string>>();
 
 // Track clients by spreadsheet ID
 const clients = new Map<string, Set<WebSocket>>();
+// Track user info by WebSocket connection
+const userInfo = new Map<WebSocket, { userId: string; userName: string }>();
+
+// Generate color from userName hash
+const getUserColor = (userName: string): string => {
+  const hash = userName
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hue = hash % 360;
+  return `hsl(${hue}, 70%, 60%)`;
+};
 
 // HTTP endpoint to create a new spreadsheet
 fastify.post("/api/spreadsheet", async () => {
@@ -65,12 +76,13 @@ const httpServer = fastify.server;
 const wss = new WebSocketServer({ server: httpServer });
 
 interface Message {
-  type: "join" | "updateCell" | "focusCell" | "ping";
+  type: "join" | "updateCell" | "focusCell" | "selectCell" | "ping";
   spreadsheetId?: string;
   row?: number;
   col?: number;
   value?: string;
   userId?: string;
+  userName?: string;
 }
 
 wss.on("connection", (ws: WebSocket) => {
@@ -84,10 +96,15 @@ wss.on("connection", (ws: WebSocket) => {
       console.log("Received message:", message);
       switch (message.type) {
         case "join": {
-          const { spreadsheetId } = message;
+          const { spreadsheetId, userId, userName } = message;
           if (!spreadsheetId) return;
 
           currentSpreadsheetId = spreadsheetId;
+
+          // Store user info for this connection
+          if (userId && userName) {
+            userInfo.set(ws, { userId, userName });
+          }
 
           // Initialize spreadsheet if doesn't exist
           if (!spreadsheets.has(spreadsheetId)) {
@@ -99,7 +116,11 @@ wss.on("connection", (ws: WebSocket) => {
 
           // Add client to room
           clients.get(spreadsheetId)!.add(ws);
-          console.log(`Client joined spreadsheet: ${spreadsheetId}`);
+          console.log(
+            `Client joined spreadsheet: ${spreadsheetId}${
+              userName ? ` (${userName})` : ""
+            }`
+          );
 
           // Send initial data
           const cells = spreadsheets.get(spreadsheetId)!;
@@ -178,6 +199,44 @@ wss.on("connection", (ws: WebSocket) => {
           break;
         }
 
+        case "selectCell": {
+          const { spreadsheetId, userId, userName, row, col } = message;
+          if (
+            !spreadsheetId ||
+            !userId ||
+            !userName ||
+            row === undefined ||
+            col === undefined
+          )
+            return;
+
+          console.log(
+            `Cell selected: ${spreadsheetId} [${row},${col}] by ${userName}`
+          );
+
+          const color = getUserColor(userName);
+
+          // Broadcast selection to other clients in the same spreadsheet
+          const roomClients = clients.get(spreadsheetId);
+          if (roomClients) {
+            const selectionMessage = JSON.stringify({
+              type: "cellSelected",
+              userId,
+              userName,
+              row,
+              col,
+              color,
+            });
+
+            roomClients.forEach((client) => {
+              if (client !== ws && client.readyState === WebSocket.OPEN) {
+                client.send(selectionMessage);
+              }
+            });
+          }
+          break;
+        }
+
         case "ping":
           ws.send(JSON.stringify({ type: "pong" }));
           break;
@@ -190,16 +249,37 @@ wss.on("connection", (ws: WebSocket) => {
   ws.on("close", () => {
     console.log("Client disconnected");
 
+    // Get user info before cleaning up
+    const user = userInfo.get(ws);
+
     // Remove client from all rooms
     if (currentSpreadsheetId) {
       const roomClients = clients.get(currentSpreadsheetId);
       if (roomClients) {
         roomClients.delete(ws);
+
+        // Notify other clients that user left
+        if (user) {
+          const userLeftMessage = JSON.stringify({
+            type: "userLeft",
+            userId: user.userId,
+          });
+
+          roomClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(userLeftMessage);
+            }
+          });
+        }
+
         if (roomClients.size === 0) {
           clients.delete(currentSpreadsheetId);
         }
       }
     }
+
+    // Clean up user info
+    userInfo.delete(ws);
   });
 
   ws.on("error", (error: Error) => {

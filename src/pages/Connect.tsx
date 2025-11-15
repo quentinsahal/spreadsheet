@@ -3,22 +3,24 @@ import { useNavigate } from "react-router-dom";
 import "./Connect.css";
 
 export function Connect() {
-  const [name, setName] = useState("");
-  const [step, setStep] = useState<"name" | "action">("name");
+  const savedName = sessionStorage.getItem("userName");
+  const [name, setName] = useState(savedName || "");
+  const [step, setStep] = useState<"name" | "action">(
+    savedName ? "action" : "name"
+  );
   const [spreadsheetId, setSpreadsheetId] = useState("");
   const navigate = useNavigate();
 
   const handleNameSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (name.trim()) {
-      localStorage.setItem("userName", name.trim());
+      sessionStorage.setItem("userName", name.trim());
       setStep("action");
     }
   };
 
   const handleCreateNew = () => {
-    const newId = `spreadsheet-${Date.now()}`;
-    navigate(`/spreadsheet/${newId}`);
+    navigate("/spreadsheet");
   };
 
   const handleJoinExisting = (e: React.FormEvent) => {

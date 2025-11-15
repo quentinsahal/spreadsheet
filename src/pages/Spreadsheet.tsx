@@ -1,10 +1,12 @@
-import { useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router-dom";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { SpreadsheetHeader } from "../lib/Spreadsheet/SpreadsheetHeader";
 import { SpreadsheetCanvas } from "../lib/Spreadsheet/SpreadSheetCanvas";
 import { SpreadsheetProvider } from "../lib/Spreadsheet/SpreadsheetProvider";
 import { useSpreadsheetConnector } from "../hooks/useSpreadsheetConnector";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { createMatrixFromCells } from "../lib/Spreadsheet/helpers";
+import type { RemoteUpdate } from "../typings";
 
 const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
   const response = await fetch("http://localhost:4000/api/spreadsheet", {
@@ -16,27 +18,81 @@ const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
   return response.json();
 };
 
+const fetchSpreadsheet = async (
+  id: string
+): Promise<{
+  spreadsheetId: string;
+  cells: Array<{ row: number; col: number; value: string }>;
+}> => {
+  const response = await fetch(`http://localhost:4000/api/spreadsheet/${id}`, {
+    method: "GET",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch spreadsheet");
+  }
+  return response.json();
+};
+
+// Utility to generate consistent color from username
+const getUserColor = (userName: string): string => {
+  const hash = userName
+    .split("")
+    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hue = hash % 360;
+  return `hsl(${hue}, 70%, 60%)`;
+};
+
 export function Spreadsheet() {
   const { id } = useParams<{ id: string }>();
-  const { mutate, data, isPending } = useMutation({
+  const navigate = useNavigate();
+
+  const [remoteUpdate, setRemoteUpdate] = useState<RemoteUpdate | null>(null);
+
+  const {
+    mutate,
+    data: createdData,
+    isPending,
+  } = useMutation({
+    mutationKey: ["createSpreadsheet"],
     mutationFn: createSpreadsheet,
+    onSuccess: (data) => {
+      navigate(`/spreadsheet/${data.spreadsheetId}`, { replace: true });
+    },
   });
 
-  // If no ID in URL params, create a new spreadsheet
+  const { data: spreadsheet, isLoading: isFetching } = useQuery({
+    queryKey: ["spreadsheet", id],
+    queryFn: () => fetchSpreadsheet(id!),
+    enabled: Boolean(id),
+  });
+
   useEffect(() => {
-    if (!id) {
+    if (!id && !isPending && !createdData) {
       mutate();
     }
-  }, [id, mutate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, isPending, createdData]);
 
-  const spreadsheetId = id || data?.spreadsheetId;
+  const matrix = useMemo(() => {
+    if (spreadsheet?.cells) {
+      return createMatrixFromCells(spreadsheet.cells);
+    }
+  }, [spreadsheet?.cells]);
 
-  const { isConnected } = useSpreadsheetConnector({
+  const spreadsheetId = id || createdData?.spreadsheetId;
+  const isLoading = isPending || isFetching;
+
+  const handleSync = useCallback((update: RemoteUpdate) => {
+    setRemoteUpdate(update);
+  }, []);
+
+  const { isConnected, updateCell, selectCell } = useSpreadsheetConnector({
     url: "ws://localhost:4000",
-    spreadsheetId: spreadsheetId || "",
+    spreadsheetId: spreadsheetId ?? "",
+    sync: handleSync,
   });
 
-  if (isPending || !spreadsheetId) {
+  if (isLoading || !spreadsheetId || !matrix) {
     return (
       <div
         style={{
@@ -55,11 +111,17 @@ export function Spreadsheet() {
 
   return (
     <SpreadsheetProvider
+      initialMatrix={matrix}
+      spreadsheetId={spreadsheetId}
+      remoteUpdate={remoteUpdate}
       onCellUpdate={(row, col, value) => {
-        console.log(row, col, value);
+        updateCell(row, col, value);
       }}
       onCellFocus={(row, col) => {
         console.log(row, col, "user-123");
+      }}
+      onCellClick={(row, col) => {
+        selectCell(row, col);
       }}
     >
       <SpreadsheetHeader />

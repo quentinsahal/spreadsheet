@@ -1,0 +1,110 @@
+.connect-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.connect-card {
+  background: white;
+  border-radius: 12px;
+  padding: 48px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  min-width: 400px;
+}
+
+.connect-card h1 {
+  margin: 0 0 32px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a1a;
+  text-align: center;
+}
+
+.connect-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.connect-card input {
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.connect-card input:focus {
+  border-color: #667eea;
+}
+
+.connect-card button {
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: #667eea;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.connect-card button:hover:not(:disabled) {
+  background: #5568d3;
+}
+
+.connect-card button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.action-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.create-btn {
+  padding: 14px 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: #10b981;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.create-btn:hover {
+  background: #059669;
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 8px 0;
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #e0e0e0;
+}
+
+.divider span {
+  position: relative;
+  background: white;
+  padding: 0 16px;
+  color: #999;
+  font-size: 14px;
+  font-weight: 500;
+}

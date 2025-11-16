@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { SpreadsheetHeader } from "../lib/Spreadsheet/SpreadsheetHeader";
 import { SpreadsheetCanvas } from "../lib/Spreadsheet/SpreadSheetCanvas";
 import { SpreadsheetProvider } from "../lib/Spreadsheet/SpreadsheetProvider";
 import { useEffect } from "react";
+import { Box, CircularProgress } from "@mui/material";
 
 const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
   const response = await fetch("http://localhost:4000/api/spreadsheet", {
@@ -15,9 +16,23 @@ const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
   return response.json();
 };
 
+const checkSpreadsheetExists = async (
+  id: string
+): Promise<{ exists: boolean }> => {
+  const response = await fetch(`http://localhost:4000/api/spreadsheet/${id}`);
+  return { exists: response.ok };
+};
+
 export function Spreadsheet() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // Check if spreadsheet exists
+  const { data: existsData, isLoading: isCheckingExists } = useQuery({
+    queryKey: ["checkSpreadsheet", id],
+    queryFn: () => checkSpreadsheetExists(id!),
+    enabled: !!id,
+  });
 
   const {
     mutate,
@@ -37,22 +52,28 @@ export function Spreadsheet() {
     }
   }, [id, isPending, createdData, mutate]);
 
+  // Show error if spreadsheet doesn't exist, navigate to homepage with error param
+  useEffect(() => {
+    if (id && existsData && !existsData.exists) {
+      navigate(`/?error=NOT_FOUND&id=${id}`);
+    }
+  }, [id, existsData, navigate]);
+
   const spreadsheetId = id || createdData?.spreadsheetId;
 
-  if (isPending || !spreadsheetId) {
+  if (isPending || !spreadsheetId || isCheckingExists) {
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
           height: "100vh",
-          fontSize: "18px",
-          color: "#666",
+          gap: 2,
         }}
       >
-        Creating spreadsheet...
-      </div>
+        <CircularProgress />
+      </Box>
     );
   }
 

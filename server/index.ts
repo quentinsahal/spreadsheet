@@ -69,20 +69,15 @@ fastify.get<{ Params: { id: string } }>(
   "/api/spreadsheet/:id",
   async (request, reply) => {
     const { id } = request.params;
-    const cellsData = await redis.hgetall(getSpreadsheetKey(id));
 
-    if (!cellsData || Object.keys(cellsData).length === 0) {
+    // Just check if spreadsheet exists (has been initialized)
+    const exists = await redis.hexists(getSpreadsheetKey(id), "initialized");
+
+    if (!exists) {
       return reply.status(404).send({ error: "Spreadsheet not found" });
     }
 
-    const cells = Object.entries(cellsData)
-      .filter(([key]) => key !== "initialized")
-      .map(([key, value]) => {
-        const [row, col] = key.split("-");
-        return { row: parseInt(row), col: parseInt(col), value };
-      });
-
-    return { spreadsheetId: id, cells };
+    return { spreadsheetId: id, exists: true };
   }
 );
 

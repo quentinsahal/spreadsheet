@@ -1,21 +1,89 @@
 version: "3.8"
 
 services:
+  # Redis Database
   redis:
     image: redis:8-alpine
-    ports:
-      - "6381:6379"
+    container_name: spreadsheet-redis
     volumes:
       - redis-data:/data
       - ./redis.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - spreadsheet-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
     restart: unless-stopped
 
+  # RedisInsight - Database Admin UI
   redisinsight:
     image: redis/redisinsight:latest
-    ports:
-      - "5540:5540"
+    container_name: spreadsheet-redisinsight
+    volumes:
+      - redisinsight-data:/data
+    networks:
+      - spreadsheet-network
+    environment:
+      - REDIS_HOSTS=local:redis:6379
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Backend
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: spreadsheet-backend
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - REDIS_URL=redis://redis:6379
+    networks:
+      - spreadsheet-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Frontend - React SPA
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: spreadsheet-frontend
+    networks:
+      - spreadsheet-network
+    restart: unless-stopped
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: spreadsheet-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/nginx-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    networks:
+      - spreadsheet-network
+    depends_on:
+      - frontend
+      - backend
+      - redisinsight
+    restart: unless-stopped
+
+networks:
+  spreadsheet-network:
+    driver: bridge
 
 volumes:
   redis-data:
+    driver: local
+  redisinsight-data:
+    driver: local

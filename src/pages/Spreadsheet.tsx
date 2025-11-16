@@ -1,10 +1,10 @@
-import { useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useParams, useNavigate } from "react-router-dom";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { SpreadsheetHeader } from "../lib/Spreadsheet/SpreadsheetHeader";
 import { SpreadsheetCanvas } from "../lib/Spreadsheet/SpreadSheetCanvas";
 import { SpreadsheetProvider } from "../lib/Spreadsheet/SpreadsheetProvider";
-import { useSpreadsheetConnector } from "../hooks/useSpreadsheetConnector";
 import { useEffect } from "react";
+import { Box, CircularProgress } from "@mui/material";
 
 const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
   const response = await fetch("http://localhost:4000/api/spreadsheet", {
@@ -16,69 +16,74 @@ const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
   return response.json();
 };
 
+const checkSpreadsheetExists = async (
+  id: string
+): Promise<{ exists: boolean }> => {
+  const response = await fetch(`http://localhost:4000/api/spreadsheet/${id}`);
+  return { exists: response.ok };
+};
+
 export function Spreadsheet() {
   const { id } = useParams<{ id: string }>();
-  const { mutate, data, isPending } = useMutation({
-    mutationFn: createSpreadsheet,
+  const navigate = useNavigate();
+
+  // Check if spreadsheet exists
+  const { data: existsData, isLoading: isCheckingExists } = useQuery({
+    queryKey: ["checkSpreadsheet", id],
+    queryFn: () => checkSpreadsheetExists(id!),
+    enabled: !!id,
   });
 
-  // If no ID in URL params, create a new spreadsheet
+  const {
+    mutate,
+    data: createdData,
+    isPending,
+  } = useMutation({
+    mutationKey: ["createSpreadsheet"],
+    mutationFn: createSpreadsheet,
+    onSuccess: (data) => {
+      navigate(`/spreadsheet/${data.spreadsheetId}`, { replace: true });
+    },
+  });
+
   useEffect(() => {
-    if (!id) {
+    if (!id && !isPending && !createdData) {
       mutate();
     }
-  }, [id, mutate]);
+  }, [id, isPending, createdData, mutate]);
 
-  const spreadsheetId = id || data?.spreadsheetId;
+  // Show error if spreadsheet doesn't exist, navigate to homepage with error param
+  useEffect(() => {
+    if (id && existsData && !existsData.exists) {
+      navigate(`/?error=NOT_FOUND&id=${id}`);
+    }
+  }, [id, existsData, navigate]);
 
-  const { isConnected } = useSpreadsheetConnector({
-    url: "ws://localhost:4000",
-    spreadsheetId: spreadsheetId || "",
-  });
+  const spreadsheetId = id || createdData?.spreadsheetId;
 
-  if (isPending || !spreadsheetId) {
+  if (isPending || !spreadsheetId || isCheckingExists) {
     return (
-      <div
-        style={{
+      <Box
+        sx={{
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
           height: "100vh",
-          fontSize: "18px",
-          color: "#666",
+          gap: 2,
         }}
       >
-        Creating spreadsheet...
-      </div>
+        <CircularProgress />
+      </Box>
     );
   }
 
   return (
     <SpreadsheetProvider
-      onCellUpdate={(row, col, value) => {
-        console.log(row, col, value);
-      }}
-      onCellFocus={(row, col) => {
-        console.log(row, col, "user-123");
-      }}
+      spreadsheetId={spreadsheetId}
+      wsUrl="ws://localhost:4000"
     >
       <SpreadsheetHeader />
       <SpreadsheetCanvas />
-      {!isConnected && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            padding: "8px 16px",
-            background: "#ff4444",
-            color: "white",
-            borderRadius: "4px",
-          }}
-        >
-          Disconnected
-        </div>
-      )}
     </SpreadsheetProvider>
   );
 }

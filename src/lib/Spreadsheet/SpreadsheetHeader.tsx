@@ -3,14 +3,7 @@ import { useState } from "react";
 import "./Spreadsheet.css";
 import { SpreadsheetCompute } from "./SpreadsheetCompute";
 import { ActiveUsers } from "./ActiveUsers";
-
-// Mock data - replace with real data from WebSocket
-const MOCK_USERS = [
-  { id: "1", name: "John Doe" },
-  { id: "2", name: "Jane Smith" },
-  { id: "3", name: "Bob Johnson" },
-  { id: "4", name: "Alice Williams" },
-];
+import { useSpreadsheet } from "./SpreadsheetProvider";
 
 export const SpreadsheetMenu = () => {
   const [name, setName] = useState<string>("Feuille de calcul sans titre");
@@ -32,6 +25,7 @@ export const SpreadsheetMenu = () => {
 };
 
 export const SpreadsheetHeader = () => {
+  const { activeUsers } = useSpreadsheet();
   return (
     <>
       <div className="header">
@@ -40,7 +34,7 @@ export const SpreadsheetHeader = () => {
         </div>
         <SpreadsheetMenu />
         <div className="header-actions">
-          <ActiveUsers users={MOCK_USERS} maxVisible={3} />
+          <ActiveUsers users={activeUsers} maxVisible={3} />
         </div>
       </div>
       <SpreadsheetCompute />

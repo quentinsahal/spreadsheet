@@ -6,6 +6,7 @@ import { useResize } from "./hooks/useResize";
 import { SelectedCell } from "./SelectedCell";
 import { ColumnHeaders } from "./ColumnHeaders";
 import { RowHeaders } from "./RowHeaders";
+import { RemoteSelections } from "./RemoteSelections";
 
 export function SpreadsheetCanvas() {
   const [action, setAction] = useState<"view" | "edit">("view");
@@ -16,7 +17,8 @@ export function SpreadsheetCanvas() {
   const columnHeaderRef = useRef<HTMLDivElement>(null);
   const rowHeaderRef = useRef<HTMLDivElement>(null);
 
-  const { matrix, selectedCell, updateSelectedCell } = useSpreadsheet();
+  const { matrix, matrixVersion, selectedCell, updateSelectedCell } =
+    useSpreadsheet();
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -58,7 +60,7 @@ export function SpreadsheetCanvas() {
   // Trigger redraw when selection or matrix changes
   useEffect(() => {
     setRedrawTrigger((prev) => prev + 1);
-  }, [selectedCell, matrix]);
+  }, [selectedCell, matrixVersion]);
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -194,6 +196,7 @@ export function SpreadsheetCanvas() {
             onClick={handleClick}
             onDoubleClick={handleDoubleClick}
           ></canvas>
+          <RemoteSelections />
           {action && <SelectedCell mode={action} switchMode={setAction} />}
         </div>
       </div>

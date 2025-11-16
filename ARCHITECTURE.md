@@ -471,6 +471,7 @@ Could use `PIPELINE` for bulk operations (not critical at current scale).
 **Virtualization**: Only render cells currently visible in viewport (windowing technique). For large spreadsheets (1000s of rows), rendering all DOM elements or canvas content causes performance issues. Virtual scrolling dynamically renders only what the user sees, dramatically reducing memory footprint and paint time.
 
 **Implementation Strategy**:
+
 - Calculate visible row/column range based on scroll position
 - Render only cells within viewport + small buffer
 - Recalculate on scroll events

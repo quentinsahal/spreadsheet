@@ -16,6 +16,7 @@ import type {
   UserSelection,
 } from "../../typings";
 import { useSpreadsheetConnector } from "../../hooks/useSpreadsheetConnector";
+import { createMatrixFromCells } from "./helpers";
 
 interface SpreadsheetContextValue {
   matrix: Matrix;
@@ -49,6 +50,7 @@ export function SpreadsheetProvider({
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
   const matrixRef = useRef<Matrix>([]);
   const [matrixVersion, setMatrixVersion] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
   const [lastSelectedCell, setLastSelectedCell] = useState<CellView | null>(
     null
   );
@@ -67,13 +69,8 @@ export function SpreadsheetProvider({
         selections,
       });
 
-      // Initialize matrix from Redis cells
-      const newMatrix: Matrix = [];
-      cells.forEach(({ row, col, value }) => {
-        if (!newMatrix[col]) newMatrix[col] = [];
-        newMatrix[col][row] = value;
-      });
-      matrixRef.current = newMatrix;
+      // Initialize matrix from Redis cells - always create proper matrix
+      matrixRef.current = createMatrixFromCells(cells);
 
       // Set active users
       setActiveUsers(activeUsers);
@@ -91,6 +88,7 @@ export function SpreadsheetProvider({
       setRemoteSelections(selectionsMap);
 
       setMatrixVersion((v) => v + 1);
+      setIsLoading(false); // Finish loading after data is loaded
       forceUpdate();
     },
     []
@@ -184,6 +182,23 @@ export function SpreadsheetProvider({
     updateSelectedCell,
     updateCellContent,
   };
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+          fontSize: "18px",
+          color: "#666",
+        }}
+      >
+        Loading spreadsheet data...
+      </div>
+    );
+  }
 
   return (
     <SpreadsheetContext.Provider value={value}>

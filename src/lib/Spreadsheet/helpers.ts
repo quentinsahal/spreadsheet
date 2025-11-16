@@ -1,8 +1,8 @@
 import {
+  type Matrix,
   Direction,
   type Coords,
-  type ICell,
-  type Matrix,
+  type CellView,
   type Position,
 } from "../../typings";
 
@@ -53,7 +53,7 @@ export const createMatrixFromCells = (
   return hydrateMatrix(matrix, cells);
 };
 
-export const getFirstCell = (matrix: Matrix): ICell => {
+export const getFirstCell = (matrix: Matrix): CellView => {
   return {
     x: 0,
     y: 0,
@@ -66,7 +66,10 @@ export const getFirstCell = (matrix: Matrix): ICell => {
   };
 };
 
-export const getCellFromPageCoord = (matrix: Matrix, coord: Coords): ICell => {
+export const getCellFromPageCoord = (
+  matrix: Matrix,
+  coord: Coords
+): CellView => {
   // coord.x/y already include header offsets (rowHeaderWidth, columnHeaderHeight)
   const position = {
     col: Math.floor(
@@ -96,7 +99,7 @@ export const getCellFromPageCoord = (matrix: Matrix, coord: Coords): ICell => {
 export const getCellFromPosition = (
   matrix: Matrix,
   position: Position
-): ICell => {
+): CellView => {
   // No header offsets - SelectedCell is inside canvas container
   const x = position.col * config.defaultColumnWidth;
   const y = position.row * config.defaultRowHeight;
@@ -141,7 +144,7 @@ export const clearSheet = (canvas: HTMLCanvasElement) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 };
 
-export const drawCell = (canvas: HTMLCanvasElement, cell: ICell) => {
+export const drawCell = (canvas: HTMLCanvasElement, cell: CellView) => {
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     return;
@@ -297,7 +300,7 @@ export const keyToDirection = (key: string): Direction | null => {
 
 export const move = (
   matrix: Matrix,
-  from: Pick<ICell, "x" | "y">,
+  from: Pick<CellView, "x" | "y">,
   direction: Direction | null
 ) => {
   let [nextCol, nextRow] = [from.x, from.y];

@@ -8,7 +8,7 @@ export function useResize(
   onResize: () => void
 ) {
   useEffect(() => {
-    if (!canvas) return;
+    if (!canvas || !matrix) return;
 
     const handleResize = () => {
       resizeSheet(canvas, matrix);
@@ -19,5 +19,5 @@ export function useResize(
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [canvas, matrix]);
+  }, [canvas, matrix, onResize]);
 }

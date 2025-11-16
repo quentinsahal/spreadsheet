@@ -1,13 +1,3 @@
-export type ICell = Coords &
-  Position & {
-    width: number;
-    height: number;
-    value?: string | number;
-    name: string;
-  };
-
-export type Matrix = (number | string)[][];
-
 export type Coords = {
   x: number;
   y: number;
@@ -17,6 +7,35 @@ export type Position = {
   col: number;
   row: number;
 };
+
+// Base cell type - minimal data representation
+export type Cell = Position & {
+  value: string;
+};
+
+// Active user representation
+export type ActiveUser = {
+  id: string;
+  name: string;
+};
+
+// Remote user selection with visual indicator
+export type UserSelection = Position & {
+  userId: string;
+  userName: string;
+  color: string;
+};
+
+// View layer - Cell with rendering properties for UI
+export type CellView = Coords &
+  Position & {
+    width: number;
+    height: number;
+    value?: string | number;
+    name: string;
+  };
+
+export type Matrix = (number | string)[][];
 
 export enum Direction {
   Up = "Up",
@@ -34,7 +53,9 @@ export interface WebSocketMessage {
     | "userJoined"
     | "userLeft"
     | "pong";
-  cells?: Array<{ row: number; col: number; value: string }>;
+  cells?: Cell[];
+  activeUsers?: ActiveUser[];
+  selections?: UserSelection[];
   row?: number;
   col?: number;
   value?: string;
@@ -42,28 +63,6 @@ export interface WebSocketMessage {
   userName?: string;
   color?: string;
 }
-
-export type WebSocketMessageType = WebSocketMessage["type"];
-
-// Discriminated union for remote updates
-export type RemoteUpdate =
-  | {
-      type: "cellUpdate";
-      updates: Array<{ row: number; col: number; value: string }>;
-      timestamp: number;
-    }
-  | {
-      type: "userSelection";
-      userId: string;
-      userName: string;
-      row: number;
-      col: number;
-      color: string;
-    }
-  | {
-      type: "userLeft";
-      userId: string;
-    };
 
 export interface RemoteUserSelection {
   userName: string;

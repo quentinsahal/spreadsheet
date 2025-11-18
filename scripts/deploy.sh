@@ -6,57 +6,41 @@
 set -e  # Exit on error
 
 # Configuration
-PROD_SERVER="${SSH_USER:-root}@${SSH_HOST:-2001:bc8:710:eefe:dc00:ff:fed2:5935}"
+SSH_TARGET="${SSH_USER}@${SSH_HOST}"
+SCP_TARGET="${SSH_USER}@[${SSH_HOST}]"
 REMOTE_DIR="/root/spreadsheet"
 LOCAL_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 echo "🚀 Deploying Spreadsheet to production..."
-echo "📍 Server: $PROD_SERVER"
+echo "📍 Server: $SSH_TARGET"
 echo "📂 Remote directory: $REMOTE_DIR"
 echo ""
 
 # Generate SSL certificates on production server
 echo "🔒 Generating SSL certificates on production server..."
-scp "$LOCAL_DIR/scripts/generate-letsencrypt-cert.sh" "$PROD_SERVER:/tmp/"
-ssh "$PROD_SERVER" "chmod +x /tmp/generate-letsencrypt-cert.sh && /tmp/generate-letsencrypt-cert.sh $REMOTE_DIR"
+scp "$LOCAL_DIR/scripts/generate-cert.sh" "$SCP_TARGET:/tmp/"
+ssh "$SSH_TARGET" "chmod +x /tmp/generate-cert.sh && /tmp/generate-cert.sh $REMOTE_DIR"
 
 # Create remote directory
 echo "📁 Creating remote directory..."
-ssh "$PROD_SERVER" "mkdir -p $REMOTE_DIR"
+ssh "$SSH_TARGET" "mkdir -p $REMOTE_DIR"
 
-# Copy essential files
-echo "📤 Copying files to server..."
+# Copy essential files only (no source code - using published Docker images)
+echo "📤 Copying deployment files to server..."
 
-# Backend, frontend source, and public
-echo "  → Application files"
-scp -r "$LOCAL_DIR/server" \
-       "$LOCAL_DIR/src" \
-       "$LOCAL_DIR/public" \
-       "$PROD_SERVER:$REMOTE_DIR/"
-
-# Configuration files (all at once)
-echo "  → Configuration files"
-scp "$LOCAL_DIR/package.json" \
-    "$LOCAL_DIR/package-lock.json" \
-    "$LOCAL_DIR/tsconfig.json" \
-    "$LOCAL_DIR/tsconfig.app.json" \
-    "$LOCAL_DIR/tsconfig.node.json" \
-    "$LOCAL_DIR/vite.config.ts" \
-    "$LOCAL_DIR/index.html" \
-    "$LOCAL_DIR/redis.conf" \
-    "$LOCAL_DIR/.env" \
-    "$PROD_SERVER:$REMOTE_DIR/"
-
-# Docker files
-echo "  → Docker files"
+# Docker Compose and configs
+echo "  → Docker Compose configuration"
 scp "$LOCAL_DIR/compose.yml" \
-    "$LOCAL_DIR/Dockerfile" \
-    "$LOCAL_DIR/.dockerignore" \
-    "$PROD_SERVER:$REMOTE_DIR/"
+    "$LOCAL_DIR/redis.conf" \
+    "$SCP_TARGET:$REMOTE_DIR/"
 
-# Deployment configs
-echo "  → Deployment configs"
-scp -r "$LOCAL_DIR/deployment" "$PROD_SERVER:$REMOTE_DIR/"
+# Nginx proxy config
+echo "  → Nginx configuration"
+scp -r "$LOCAL_DIR/deployment" "$SCP_TARGET:$REMOTE_DIR/"
+
+# Copy .env file to remote server
+echo "  → Environment variables"
+scp "$LOCAL_DIR/.env" "$SCP_TARGET:$REMOTE_DIR/"
 
 echo ""
 echo "✅ Files copied successfully!"
@@ -64,13 +48,11 @@ echo ""
 
 # Start Docker Compose on remote server
 echo "🐳 Starting Docker Compose on production server..."
-ssh "$PROD_SERVER" "cd /root/spreadsheet && \
-  docker compose pull redis redisinsight nginx 2>/dev/null || true && \
-  docker compose up -d --build"
+ssh "$SSH_TARGET" "cd $REMOTE_DIR && source .env && docker compose pull && docker compose up -d"
 
 # Show status
-ssh "$PROD_SERVER" << 'ENDSSH'
-cd /root/spreadsheet
+ssh "$SSH_TARGET" << ENDSSH
+cd $REMOTE_DIR
 
 # Show status
 echo ""
@@ -101,4 +83,4 @@ echo ""
 echo "🎉 Deployment finished!"
 echo ""
 echo "💡 To view logs:"
-echo "   ssh $PROD_SERVER 'cd $REMOTE_DIR && docker compose logs -f'"
+echo "   ssh $SSH_TARGET 'cd $REMOTE_DIR && docker compose logs -f'"

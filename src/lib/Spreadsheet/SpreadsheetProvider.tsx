@@ -17,6 +17,7 @@ import type {
 } from "../../typings";
 import { useSpreadsheetConnector } from "../../hooks/useSpreadsheetConnector";
 import { createMatrixFromCells } from "./helpers";
+import { config } from "../../config";
 
 interface SpreadsheetContextValue {
   matrix: Matrix;
@@ -45,7 +46,7 @@ const SpreadsheetContext = createContext<SpreadsheetContextValue | null>(null);
 export function SpreadsheetProvider({
   children,
   spreadsheetId,
-  wsUrl = "ws://localhost:4000",
+  wsUrl = config.wsUrl,
 }: SpreadsheetProviderProps) {
   const [, forceUpdate] = useReducer((x) => x + 1, 0);
   const matrixRef = useRef<Matrix>([]);

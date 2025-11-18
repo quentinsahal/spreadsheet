@@ -27,7 +27,7 @@ services:
     networks:
       - spreadsheet-network
     environment:
-      - REDIS_HOSTS=local:redis:6379
+      - REDIS_HOSTS=${REDIS_HOSTS:-local:redis:6379}
     restart: unless-stopped
     depends_on:
       redis:
@@ -35,29 +35,55 @@ services:
 
   # Backend
   backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: spreadsheet-backend
+    image: ${DOCKER_USERNAME}/spreadsheet-server:${TAG:-latest}
+    container_name: spreadsheet-server
     environment:
-      - NODE_ENV=production
-      - PORT=4000
-      - REDIS_URL=redis://redis:6379
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=${BACKEND_PORT:-4000}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
     networks:
       - spreadsheet-network
     depends_on:
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:4000/health",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
 
   # Frontend - React SPA
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ${DOCKER_USERNAME}/spreadsheet-docs:${TAG:-latest}
     container_name: spreadsheet-frontend
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
     networks:
       - spreadsheet-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:80",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     restart: unless-stopped
 
   # Nginx Reverse Proxy

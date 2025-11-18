@@ -5,9 +5,10 @@ import { SpreadsheetCanvas } from "../lib/Spreadsheet/SpreadSheetCanvas";
 import { SpreadsheetProvider } from "../lib/Spreadsheet/SpreadsheetProvider";
 import { useEffect } from "react";
 import { Box, CircularProgress } from "@mui/material";
+import { config } from "../config";
 
 const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
-  const response = await fetch("http://localhost:4000/api/spreadsheet", {
+  const response = await fetch(`${config.apiUrl}/api/spreadsheet`, {
     method: "POST",
   });
   if (!response.ok) {
@@ -19,7 +20,7 @@ const createSpreadsheet = async (): Promise<{ spreadsheetId: string }> => {
 const checkSpreadsheetExists = async (
   id: string
 ): Promise<{ exists: boolean }> => {
-  const response = await fetch(`http://localhost:4000/api/spreadsheet/${id}`);
+  const response = await fetch(`${config.apiUrl}/api/spreadsheet/${id}`);
   return { exists: response.ok };
 };
 
@@ -78,10 +79,7 @@ export function Spreadsheet() {
   }
 
   return (
-    <SpreadsheetProvider
-      spreadsheetId={spreadsheetId}
-      wsUrl="ws://localhost:4000"
-    >
+    <SpreadsheetProvider spreadsheetId={spreadsheetId} wsUrl={config.wsUrl}>
       <SpreadsheetHeader />
       <SpreadsheetCanvas />
     </SpreadsheetProvider>

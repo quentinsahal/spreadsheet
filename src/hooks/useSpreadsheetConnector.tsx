@@ -6,6 +6,7 @@ import type {
   ActiveUser,
   UserSelection,
 } from "../typings";
+import { config } from "../config";
 
 interface UseSpreadsheetConnectorOptions {
   spreadsheetId: string;
@@ -29,7 +30,7 @@ interface UseSpreadsheetConnectorOptions {
 
 export function useSpreadsheetConnector({
   spreadsheetId,
-  url = "ws://localhost:4000",
+  url = config.wsUrl,
   onInitialData,
   onCellUpdate,
   onUserJoined,

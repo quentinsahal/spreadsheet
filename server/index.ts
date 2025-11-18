@@ -28,6 +28,17 @@ fastify.register(import("@fastify/cors"), {
   origin: true,
 });
 
+// Health check endpoint
+fastify.get("/health", async () => {
+  try {
+    // Check Redis connectivity
+    await redis.ping();
+    return { status: "healthy", redis: "connected" };
+  } catch (error) {
+    return { status: "unhealthy", redis: "disconnected", error };
+  }
+});
+
 // Track clients by spreadsheet ID
 const clients = new Map<string, Set<WebSocket>>();
 

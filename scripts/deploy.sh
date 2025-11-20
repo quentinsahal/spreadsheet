@@ -28,14 +28,14 @@ ssh "$SSH_TARGET" "mkdir -p $REMOTE_DIR"
 # Copy essential files only (no source code - using published Docker images)
 echo "📤 Copying deployment files to server..."
 
-# Docker Compose and configs
+# Docker Compose config
 echo "  → Docker Compose configuration"
-scp "$LOCAL_DIR/compose.yml" \
-    "$LOCAL_DIR/redis.conf" \
+scp "$LOCAL_DIR/compose.common.yml" \
+    "$LOCAL_DIR/compose.prod.yml" \
     "$SCP_TARGET:$REMOTE_DIR/"
 
-# Nginx proxy config
-echo "  → Nginx configuration"
+# Deployment folder (nginx, redis configs, etc)
+echo "  → Deployment configs and scripts"
 scp -r "$LOCAL_DIR/deployment" "$SCP_TARGET:$REMOTE_DIR/"
 
 # Copy .env file to remote server
@@ -48,7 +48,7 @@ echo ""
 
 # Start Docker Compose on remote server
 echo "🐳 Starting Docker Compose on production server..."
-ssh "$SSH_TARGET" "cd $REMOTE_DIR && source .env && docker compose pull && docker compose up -d"
+ssh "$SSH_TARGET" "cd $REMOTE_DIR && source .env && docker compose -f compose.prod.yml pull && docker compose -f compose.prod.yml up -d"
 
 # Show status
 ssh "$SSH_TARGET" << ENDSSH
@@ -57,12 +57,12 @@ cd $REMOTE_DIR
 # Show status
 echo ""
 echo "📊 Service status:"
-docker compose ps
+docker compose -f compose.prod.yml ps
 
 # Show logs
 echo ""
 echo "📝 Recent logs:"
-docker compose logs --tail=20
+docker compose -f compose.prod.yml logs --tail=20
 
 echo ""
 echo "✅ Deployment complete!"
@@ -83,4 +83,4 @@ echo ""
 echo "🎉 Deployment finished!"
 echo ""
 echo "💡 To view logs:"
-echo "   ssh $SSH_TARGET 'cd $REMOTE_DIR && docker compose logs -f'"
+echo "   ssh $SSH_TARGET 'cd $REMOTE_DIR && docker compose -f compose.prod.yml logs -f'"

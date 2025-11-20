@@ -1,0 +1,55 @@
+# Common services shared between dev and prod
+
+services:
+  # Redis Database
+  redis:
+    image: redis:8-alpine
+    container_name: spreadsheet-redis
+    volumes:
+      - redis-data:/data
+      - ./deployment/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./deployment/redis-entrypoint.sh:/redis-entrypoint.sh
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_READONLY_PASSWORD=${REDIS_READONLY_PASSWORD}
+    entrypoint: ["sh", "/redis-entrypoint.sh"]
+    networks:
+      - spreadsheet-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "redis-cli",
+          "-u",
+          "redis://admin:${REDIS_PASSWORD}@localhost:6379",
+          "ping",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # RedisInsight - Database Admin UI
+  redisinsight:
+    image: redis/redisinsight:latest
+    container_name: spreadsheet-redisinsight
+    volumes:
+      - redisinsight-data:/data
+    networks:
+      - spreadsheet-network
+    environment:
+      - REDIS_HOSTS=local:${REDIS_READONLY_USER}:${REDIS_READONLY_PASSWORD}@redis:6379
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+networks:
+  spreadsheet-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+    driver: local
+  redisinsight-data:
+    driver: local

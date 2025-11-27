@@ -17,7 +17,6 @@ import type {
 } from "../../typings";
 import { useSpreadsheetConnector } from "../../hooks/useSpreadsheetConnector";
 import { createMatrixFromCells } from "./helpers";
-import { config } from "../../config";
 import { debug } from "../debug";
 
 interface SpreadsheetContextValue {
@@ -38,8 +37,7 @@ interface SpreadsheetContextValue {
 
 interface SpreadsheetProviderProps {
   children: ReactNode;
-  spreadsheetId?: string;
-  wsUrl?: string;
+  spreadsheetId: string;
 }
 
 const SpreadsheetContext = createContext<SpreadsheetContextValue | null>(null);
@@ -47,7 +45,6 @@ const SpreadsheetContext = createContext<SpreadsheetContextValue | null>(null);
 export function SpreadsheetProvider({
   children,
   spreadsheetId,
-  wsUrl = config.wsUrl,
 }: SpreadsheetProviderProps) {
   const matrixRef = useRef<Matrix>([]);
   const [matrixVersion, setMatrixVersion] = useState(0);
@@ -174,8 +171,7 @@ export function SpreadsheetProvider({
 
   // Integrate WebSocket connector
   const { wsActions, isConnected } = useSpreadsheetConnector({
-    spreadsheetId: spreadsheetId ?? "",
-    url: wsUrl,
+    spreadsheetId,
     onInitialData: handleInitialData,
     onCellUpdate: handleCellUpdate,
     onUserJoined: handleUserJoined,

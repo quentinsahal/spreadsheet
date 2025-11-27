@@ -79,7 +79,7 @@ export function Spreadsheet() {
   }
 
   return (
-    <SpreadsheetProvider spreadsheetId={spreadsheetId} wsUrl={config.wsUrl}>
+    <SpreadsheetProvider spreadsheetId={spreadsheetId}>
       <SpreadsheetHeader />
       <SpreadsheetCanvas />
     </SpreadsheetProvider>

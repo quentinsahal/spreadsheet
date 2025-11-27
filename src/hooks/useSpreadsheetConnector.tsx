@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { useWebSocket } from "./useWebSocket";
+import { useCallback, useEffect } from "react";
+import { useSocket } from "../providers/SocketProvider";
 import type {
   WebSocketMessage,
   Cell,
@@ -7,12 +7,10 @@ import type {
   UserSelection,
   Position,
 } from "../typings";
-import { config } from "../config";
 import { debug } from "../lib/debug";
 
 interface UseSpreadsheetConnectorOptions {
   spreadsheetId: string;
-  url?: string;
   onInitialData?: (
     cells: Cell[],
     activeUsers: ActiveUser[],
@@ -35,7 +33,6 @@ interface UseSpreadsheetConnectorOptions {
 
 export function useSpreadsheetConnector({
   spreadsheetId,
-  url = config.wsUrl,
   onInitialData,
   onCellUpdate,
   onUserJoined,
@@ -44,8 +41,31 @@ export function useSpreadsheetConnector({
   onCellLocked,
   onCellUnlocked,
 }: UseSpreadsheetConnectorOptions) {
-  const handleMessage = useCallback(
-    (event: MessageEvent) => {
+  const { sendMessage, subscribe, isConnected, error } = useSocket();
+
+  // Join spreadsheet room when connected
+  useEffect(() => {
+    if (!isConnected) return;
+
+    const userName = sessionStorage.getItem("userName") || "Anonymous";
+    const userId = sessionStorage.getItem("userId") || crypto.randomUUID();
+
+    if (!sessionStorage.getItem("userId")) {
+      sessionStorage.setItem("userId", userId);
+    }
+
+    debug.ws.log("Joining spreadsheet", spreadsheetId);
+    sendMessage({
+      type: "join",
+      spreadsheetId,
+      userId,
+      userName,
+    });
+  }, [isConnected, spreadsheetId, sendMessage]);
+
+  // Subscribe to messages
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
 
@@ -55,8 +75,6 @@ export function useSpreadsheetConnector({
               cells: message.cells?.length,
               users: message.activeUsers?.length,
             });
-
-            // Pass all initial data to single callback
             onInitialData?.(
               message.cells || [],
               message.activeUsers || [],
@@ -64,18 +82,21 @@ export function useSpreadsheetConnector({
               message.locks || []
             );
             break;
+
           case "cellLocked":
             onCellLocked?.(
               { row: message.row!, col: message.col! },
               message.userId!
             );
             break;
+
           case "cellUnlocked":
             onCellUnlocked?.(
               { row: message.row!, col: message.col! },
               message.userId!
             );
             break;
+
           case "cellUpdated":
             if (message.row !== undefined && message.col !== undefined) {
               debug.ws.log("Cell updated", {
@@ -109,6 +130,7 @@ export function useSpreadsheetConnector({
               );
             }
             break;
+
           case "cellFocused":
             if (
               message.row !== undefined &&
@@ -136,51 +158,26 @@ export function useSpreadsheetConnector({
               debug.ws.log("User left", message.userId);
             }
             break;
+
           case "pong":
-            // Handle ping response if needed
             break;
         }
-      } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+      } catch (err) {
+        console.error("Error parsing WebSocket message:", err);
       }
-    },
-    [
-      onInitialData,
-      onCellUpdate,
-      onUserJoined,
-      onUserLeft,
-      onUserSelection,
-      onCellLocked,
-      onCellUnlocked,
-    ]
-  );
-  const handleOpen = useCallback(
-    (ws: WebSocket) => {
-      const userName = sessionStorage.getItem("userName") || "Anonymous";
-      const userId = sessionStorage.getItem("userId") || crypto.randomUUID();
+    };
 
-      // Store userId if generated
-      if (!sessionStorage.getItem("userId")) {
-        sessionStorage.setItem("userId", userId);
-      }
-
-      ws.send(
-        JSON.stringify({
-          type: "join",
-          spreadsheetId,
-          userId,
-          userName,
-        })
-      );
-    },
-    [spreadsheetId]
-  );
-
-  const { sendMessage, isConnected, error } = useWebSocket({
-    url,
-    onOpen: handleOpen,
-    onMessage: handleMessage,
-  });
+    return subscribe(handleMessage);
+  }, [
+    subscribe,
+    onInitialData,
+    onCellUpdate,
+    onUserJoined,
+    onUserLeft,
+    onUserSelection,
+    onCellLocked,
+    onCellUnlocked,
+  ]);
 
   const updateCell = useCallback(
     (row: number, col: number, value: string) => {

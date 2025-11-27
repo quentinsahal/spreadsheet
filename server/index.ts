@@ -184,12 +184,17 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
               return { row: parseInt(row), col: parseInt(col), value };
             });
 
-          // Get current locks
-          const locksData = await redis.hgetall(getLocksKey(spreadsheetId));
-          const locks = Object.entries(locksData).map(([key, lockedBy]) => {
-            const [row, col] = key.split("-");
-            return { row: parseInt(row), col: parseInt(col), lockedBy };
-          });
+          // Get current locks (scan for lock keys)
+          const lockPattern = `${getLocksKey(spreadsheetId)}:*`;
+          const lockKeys = await redis.keys(lockPattern);
+          const locks = await Promise.all(
+            lockKeys.map(async (lockKey) => {
+              const lockedBy = await redis.get(lockKey);
+              const coords = lockKey.split(":").pop()!; // e.g., "0-1"
+              const [row, col] = coords.split("-");
+              return { row: parseInt(row), col: parseInt(col), lockedBy };
+            })
+          );
 
           // Get active users (excluding self)
           const activeUsersData = await redis.hgetall(
@@ -315,15 +320,11 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
           }
 
           const key = `${row}-${col}`;
-          const redisKey = getLocksKey(spreadsheetId);
-          console.log("Writing to Redis:", { redisKey, key, userId });
+          const lockKey = `${getLocksKey(spreadsheetId)}:${key}`;
+          console.log("Writing to Redis:", { lockKey, userId });
 
-          const result = await redis.hset(redisKey, key, userId);
-          console.log("Redis hset result:", result);
-
-          // Verify write
-          const verification = await redis.hget(redisKey, key);
-          console.log("Verification read:", verification);
+          // Set lock with 1 hour TTL
+          await redis.setex(lockKey, 3600, userId);
 
           const payload = JSON.stringify({
             type: "cellLocked",
@@ -347,7 +348,8 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
           if (!spreadsheetId || row === undefined || col === undefined) return;
 
           const key = `${row}-${col}`;
-          await redis.hdel(getLocksKey(spreadsheetId), key);
+          const lockKey = `${getLocksKey(spreadsheetId)}:${key}`;
+          await redis.del(lockKey);
 
           const payload = JSON.stringify({
             type: "cellUnlocked",

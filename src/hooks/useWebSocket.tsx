@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { debug } from "../lib/debug";
 
 interface UseWebSocketOptions {
   url: string;
@@ -33,7 +34,7 @@ export function useWebSocket({
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log("WebSocket connected");
+      debug.ws.log("Connected");
       setIsConnected(true);
       setError(null);
       onOpen?.(ws);
@@ -50,13 +51,13 @@ export function useWebSocket({
     };
 
     ws.onclose = (event) => {
-      console.log("WebSocket disconnected");
+      debug.ws.log("Disconnected");
       setIsConnected(false);
       onClose?.(event);
 
       // Auto-reconnect if enabled
       if (autoReconnect && shouldReconnectRef.current) {
-        console.log(`Reconnecting in ${reconnectInterval}ms...`);
+        debug.ws.log(`Reconnecting in ${reconnectInterval}ms`);
         reconnectTimeoutRef.current = window.setTimeout(() => {
           onReconnect?.();
           connect();

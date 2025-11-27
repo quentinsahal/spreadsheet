@@ -15,9 +15,9 @@ export const config = {
   defaultRows: 100,
   rowHeaderWidth: 50,
   columnHeaderHeight: 20,
-  strokeColor: "#c0bebeff",
+  strokeColor: "#080808ff",
   selectedHeadersBgColor: "rgba(26, 115, 232, 0.1)",
-  strokeWidth: 0.5,
+  strokeWidth: 0.25,
   textSize: 16,
   textFont: "Roboto",
 };

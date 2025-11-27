@@ -44,32 +44,10 @@ export function ActiveUsers({ users, maxVisible = 3 }: ActiveUsersProps) {
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 4,
+        flexDirection: "row-reverse",
+        justifyContent: "flex-end",
       }}
     >
-      {visibleUsers.map((user) => (
-        <div
-          key={user.id}
-          title={user.name}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            backgroundColor: getUserColor(user.id, user.color),
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            border: "2px solid white",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-          }}
-        >
-          {getInitials(user.name)}
-        </div>
-      ))}
       {remainingCount > 0 && (
         <div
           title={`+${remainingCount} more`}
@@ -87,11 +65,40 @@ export function ActiveUsers({ users, maxVisible = 3 }: ActiveUsersProps) {
             cursor: "pointer",
             border: "2px solid white",
             boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+            marginLeft: -12,
+            position: "relative",
+            zIndex: 0,
           }}
         >
           +{remainingCount}
         </div>
       )}
+      {[...visibleUsers].reverse().map((user, index) => (
+        <div
+          key={user.id}
+          title={user.name}
+          style={{
+            width: 32,
+            height: 32,
+            borderRadius: "50%",
+            backgroundColor: getUserColor(user.id, user.color),
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            border: "2px solid white",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+            marginLeft: index === visibleUsers.length - 1 ? 0 : -12,
+            position: "relative",
+            zIndex: index + 1,
+          }}
+        >
+          {getInitials(user.name)}
+        </div>
+      ))}
     </div>
   );
 }

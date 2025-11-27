@@ -6,8 +6,8 @@ import { Direction, type Position } from "../../typings";
 type Mode = "edit" | "view";
 export type SelectedCellProps = {
   mode: Mode;
-  onLockCell: (pos: Position, userId: string) => void;
-  onUnlockCell: (pos: Position, userId: string) => void;
+  onLockCell: (pos: Position) => void;
+  onUnlockCell: (pos: Position) => void;
 };
 export function SelectedCell({
   mode,
@@ -29,13 +29,10 @@ export function SelectedCell({
       if (e.key === "Enter" && selectedCell) {
         e.preventDefault();
         if (mode === "view") {
-          onLockCell({ row: selectedCell.row, col: selectedCell.col }, "local");
+          onLockCell({ row: selectedCell.row, col: selectedCell.col });
         }
         if (mode === "edit") {
-          onUnlockCell(
-            { row: selectedCell.row, col: selectedCell.col },
-            "local"
-          );
+          onUnlockCell({ row: selectedCell.row, col: selectedCell.col });
           updateSelectedCell(
             move(
               matrix,

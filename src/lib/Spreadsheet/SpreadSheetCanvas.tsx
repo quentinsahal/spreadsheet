@@ -8,6 +8,7 @@ import { ColumnHeaders } from "./ColumnHeaders";
 import { RowHeaders } from "./RowHeaders";
 import { RemoteSelections } from "./RemoteSelections";
 import type { Position } from "../../typings";
+import { debug } from "../debug";
 
 export function SpreadsheetCanvas() {
   const [action, setAction] = useState<"view" | "edit">("view");
@@ -78,10 +79,7 @@ export function SpreadsheetCanvas() {
       (localLockedCell.row !== selectedCell.row ||
         localLockedCell.col !== selectedCell.col)
     ) {
-      console.log(
-        "Selection changed, unlocking previous cell:",
-        localLockedCell
-      );
+      debug.canvas.log("Selection changed, unlocking", localLockedCell);
       unlockCell(localLockedCell);
       setAction("view");
     }
@@ -116,7 +114,7 @@ export function SpreadsheetCanvas() {
         x: e.nativeEvent.offsetX + config.rowHeaderWidth,
         y: e.nativeEvent.offsetY + config.columnHeaderHeight,
       });
-      console.log("Single clicked cell: ", cell);
+      debug.canvas.log("Single click", cell);
       setAction("view");
       updateSelectedCell({ ...cell });
       clickTimerRef.current = null;
@@ -124,13 +122,13 @@ export function SpreadsheetCanvas() {
   };
 
   const handleLockCell = (pos: Position) => {
-    console.log("Locking cell: ", pos);
+    debug.canvas.log("Locking cell", pos);
     lockCell({ row: pos.row, col: pos.col });
     setAction("edit");
   };
 
   const handleUnlockCell = () => {
-    console.log("Unlocking cell");
+    debug.canvas.log("Unlocking cell");
     unlockCell({ row: selectedCell!.row, col: selectedCell!.col });
     setAction("view");
   };
@@ -151,7 +149,7 @@ export function SpreadsheetCanvas() {
     const cellData = matrix[cell.col]?.[cell.row];
     const userId = sessionStorage.getItem("userId");
     if (cellData?.lockedBy && cellData.lockedBy !== userId) {
-      console.log("Cell is locked by another user:", cellData.lockedBy);
+      debug.canvas.warn("Cell locked by another user", cellData.lockedBy);
       return;
     }
 

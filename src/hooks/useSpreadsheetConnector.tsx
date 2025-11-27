@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useWebSocket } from "./useWebSocket";
 import type {
   WebSocketMessage,
@@ -8,6 +8,7 @@ import type {
   Position,
 } from "../typings";
 import { config } from "../config";
+import { debug } from "../lib/debug";
 
 interface UseSpreadsheetConnectorOptions {
   spreadsheetId: string;
@@ -43,10 +44,6 @@ export function useSpreadsheetConnector({
   onCellLocked,
   onCellUnlocked,
 }: UseSpreadsheetConnectorOptions) {
-  const [activeUsers, setActiveUsers] = useState<
-    Array<{ id: string; name: string }>
-  >([]);
-
   const handleMessage = useCallback(
     (event: MessageEvent) => {
       try {
@@ -54,7 +51,10 @@ export function useSpreadsheetConnector({
 
         switch (message.type) {
           case "initialData":
-            console.log("Initial data received:", message);
+            debug.ws.log("Initial data received", {
+              cells: message.cells?.length,
+              users: message.activeUsers?.length,
+            });
 
             // Pass all initial data to single callback
             onInitialData?.(
@@ -78,12 +78,11 @@ export function useSpreadsheetConnector({
             break;
           case "cellUpdated":
             if (message.row !== undefined && message.col !== undefined) {
-              console.log(
-                "Cell updated:",
-                message.row,
-                message.col,
-                message.value
-              );
+              debug.ws.log("Cell updated", {
+                row: message.row,
+                col: message.col,
+                value: message.value,
+              });
               onCellUpdate?.(message.row, message.col, message.value ?? "");
             }
             break;
@@ -96,12 +95,11 @@ export function useSpreadsheetConnector({
               message.col !== undefined &&
               message.color
             ) {
-              console.log(
-                "Cell selected by remote user:",
-                message.userName,
-                message.row,
-                message.col
-              );
+              debug.ws.log("Remote selection", {
+                user: message.userName,
+                row: message.row,
+                col: message.col,
+              });
               onUserSelection?.(
                 message.userId,
                 message.userName,
@@ -117,33 +115,25 @@ export function useSpreadsheetConnector({
               message.col !== undefined &&
               message.userId
             ) {
-              console.log(
-                "Cell focused:",
-                message.row,
-                message.col,
-                message.userId
-              );
+              debug.ws.log("Cell focused", {
+                row: message.row,
+                col: message.col,
+                userId: message.userId,
+              });
             }
             break;
 
           case "userJoined":
             if (message.userId && message.userName) {
-              setActiveUsers((prev) => [
-                ...prev,
-                { id: message.userId!, name: message.userName! },
-              ]);
               onUserJoined?.(message.userId, message.userName);
-              console.log("User joined:", message.userId, message.userName);
+              debug.ws.log("User joined", message.userName);
             }
             break;
 
           case "userLeft":
             if (message.userId) {
-              setActiveUsers((prev) =>
-                prev.filter((user) => user.id !== message.userId)
-              );
               onUserLeft?.(message.userId);
-              console.log("User left:", message.userId);
+              debug.ws.log("User left", message.userId);
             }
             break;
           case "pong":
@@ -259,6 +249,5 @@ export function useSpreadsheetConnector({
     wsActions,
     isConnected,
     error,
-    activeUsers,
   };
 }

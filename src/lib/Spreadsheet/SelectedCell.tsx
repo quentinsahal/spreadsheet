@@ -1,14 +1,19 @@
 import { useEffect, useRef } from "react";
 import { useSpreadsheet } from "./SpreadsheetProvider";
 import { move } from "./helpers";
-import { Direction } from "../../typings";
+import { Direction, type Position } from "../../typings";
 
 type Mode = "edit" | "view";
 export type SelectedCellProps = {
   mode: Mode;
-  switchMode: (mode: Mode) => void;
+  onLockCell: (pos: Position, userId: string) => void;
+  onUnlockCell: (pos: Position, userId: string) => void;
 };
-export function SelectedCell({ mode, switchMode }: SelectedCellProps) {
+export function SelectedCell({
+  mode,
+  onLockCell,
+  onUnlockCell,
+}: SelectedCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { matrix, selectedCell, updateSelectedCell, updateCellContent } =
     useSpreadsheet();
@@ -19,12 +24,18 @@ export function SelectedCell({ mode, switchMode }: SelectedCellProps) {
   }, [mode]);
 
   useEffect(() => {
+    // Handle Enter key to switch between edit and view modes
     const handleEnterKey = (e: KeyboardEvent) => {
       if (e.key === "Enter" && selectedCell) {
         e.preventDefault();
-        switchMode(mode === "edit" ? "view" : "edit");
-
+        if (mode === "view") {
+          onLockCell({ row: selectedCell.row, col: selectedCell.col }, "local");
+        }
         if (mode === "edit") {
+          onUnlockCell(
+            { row: selectedCell.row, col: selectedCell.col },
+            "local"
+          );
           updateSelectedCell(
             move(
               matrix,
@@ -39,7 +50,14 @@ export function SelectedCell({ mode, switchMode }: SelectedCellProps) {
     return () => {
       document.removeEventListener("keydown", handleEnterKey);
     };
-  }, [selectedCell, mode, matrix, switchMode, updateSelectedCell]);
+  }, [
+    selectedCell,
+    mode,
+    matrix,
+    onLockCell,
+    onUnlockCell,
+    updateSelectedCell,
+  ]);
 
   if (mode === "edit") {
     return (

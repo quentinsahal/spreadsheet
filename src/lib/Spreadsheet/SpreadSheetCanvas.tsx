@@ -7,6 +7,7 @@ import { SelectedCell } from "./SelectedCell";
 import { ColumnHeaders } from "./ColumnHeaders";
 import { RowHeaders } from "./RowHeaders";
 import { RemoteSelections } from "./RemoteSelections";
+import type { Position } from "../../typings";
 
 export function SpreadsheetCanvas() {
   const [action, setAction] = useState<"view" | "edit">("view");
@@ -17,8 +18,15 @@ export function SpreadsheetCanvas() {
   const columnHeaderRef = useRef<HTMLDivElement>(null);
   const rowHeaderRef = useRef<HTMLDivElement>(null);
 
-  const { matrix, matrixVersion, selectedCell, updateSelectedCell } =
-    useSpreadsheet();
+  const {
+    localLockedCell,
+    matrix,
+    matrixVersion,
+    selectedCell,
+    lockCell,
+    unlockCell,
+    updateSelectedCell,
+  } = useSpreadsheet();
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -62,7 +70,25 @@ export function SpreadsheetCanvas() {
     setRedrawTrigger((prev) => prev + 1);
   }, [selectedCell, matrixVersion]);
 
+  // Auto-unlock when selection changes to a different cell
   useEffect(() => {
+    if (
+      localLockedCell &&
+      selectedCell &&
+      (localLockedCell.row !== selectedCell.row ||
+        localLockedCell.col !== selectedCell.col)
+    ) {
+      console.log(
+        "Selection changed, unlocking previous cell:",
+        localLockedCell
+      );
+      unlockCell(localLockedCell);
+      setAction("view");
+    }
+  }, [selectedCell, localLockedCell, unlockCell]);
+
+  useEffect(() => {
+    // Event pour se balader avec le clavier dans les cellules
     const handleKeyPress = (e: KeyboardEvent) => {
       if (selectedCell && action === "view") {
         e.preventDefault();
@@ -79,8 +105,6 @@ export function SpreadsheetCanvas() {
     document.addEventListener("keydown", handleKeyPress);
     return () => document.removeEventListener("keydown", handleKeyPress);
   }, [selectedCell, action, matrix, updateSelectedCell]);
-
-  // Handle window resize
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (clickTimerRef.current) {
@@ -99,19 +123,40 @@ export function SpreadsheetCanvas() {
     }, 150);
   };
 
+  const handleLockCell = (pos: Position) => {
+    console.log("Locking cell: ", pos);
+    lockCell({ row: pos.row, col: pos.col });
+    setAction("edit");
+  };
+
+  const handleUnlockCell = () => {
+    console.log("Unlocking cell");
+    unlockCell({ row: selectedCell!.row, col: selectedCell!.col });
+    setAction("view");
+  };
+
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (clickTimerRef.current) {
       clearTimeout(clickTimerRef.current);
       clickTimerRef.current = null;
     }
+
     // offsetX/offsetY already gives position within canvas, just add header offsets
     const cell = getCellFromPageCoord(matrix, {
       x: e.nativeEvent.offsetX + config.rowHeaderWidth,
       y: e.nativeEvent.offsetY + config.columnHeaderHeight,
     });
-    console.log("Double clicked cell: ", cell);
-    setAction("edit");
+
+    // Check if cell is locked by another user
+    const cellData = matrix[cell.col]?.[cell.row];
+    const userId = sessionStorage.getItem("userId");
+    if (cellData?.lockedBy && cellData.lockedBy !== userId) {
+      console.log("Cell is locked by another user:", cellData.lockedBy);
+      return;
+    }
+
     updateSelectedCell({ ...cell });
+    handleLockCell({ row: cell.row, col: cell.col });
   };
 
   return (
@@ -197,7 +242,13 @@ export function SpreadsheetCanvas() {
             onDoubleClick={handleDoubleClick}
           ></canvas>
           <RemoteSelections />
-          {action && <SelectedCell mode={action} switchMode={setAction} />}
+          {action && (
+            <SelectedCell
+              mode={action}
+              onLockCell={handleLockCell}
+              onUnlockCell={handleUnlockCell}
+            />
+          )}
         </div>
       </div>
     </div>

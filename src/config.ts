@@ -7,7 +7,10 @@ const API_URL =
   envUrl ||
   (runtimeUrl.startsWith("__") ? "http://localhost:4000" : runtimeUrl);
 
+const DEBUG = import.meta.env.VITE_DEBUG === "true";
+
 export const config = {
   apiUrl: API_URL.replace(/\/$/, ""), // Remove trailing slash
   wsUrl: API_URL.replace(/^http/, "ws"), // Convert http(s) to ws(s)
+  debug: DEBUG,
 } as const;

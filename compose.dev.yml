@@ -1,8 +1,5 @@
 # Development environment - local frontend and backend, containerized Redis
 
-include:
-  - compose.common.yml
-
 services:
   # Redis exposed on host for local backend
   redis:

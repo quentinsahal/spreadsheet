@@ -5,6 +5,7 @@ import type {
   Cell,
   ActiveUser,
   UserSelection,
+  Position,
 } from "../typings";
 import { config } from "../config";
 
@@ -14,11 +15,14 @@ interface UseSpreadsheetConnectorOptions {
   onInitialData?: (
     cells: Cell[],
     activeUsers: ActiveUser[],
-    selections: UserSelection[]
+    selections: UserSelection[],
+    locks: { row: number; col: number; lockedBy: string }[]
   ) => void;
   onCellUpdate?: (row: number, col: number, value: string) => void;
   onUserJoined?: (userId: string, userName: string) => void;
   onUserLeft?: (userId: string) => void;
+  onCellLocked?: (pos: Position, userId: string) => void;
+  onCellUnlocked?: (pos: Position, userId: string) => void;
   onUserSelection?: (
     userId: string,
     userName: string,
@@ -36,6 +40,8 @@ export function useSpreadsheetConnector({
   onUserJoined,
   onUserLeft,
   onUserSelection,
+  onCellLocked,
+  onCellUnlocked,
 }: UseSpreadsheetConnectorOptions) {
   const [activeUsers, setActiveUsers] = useState<
     Array<{ id: string; name: string }>
@@ -54,7 +60,20 @@ export function useSpreadsheetConnector({
             onInitialData?.(
               message.cells || [],
               message.activeUsers || [],
-              message.selections || []
+              message.selections || [],
+              message.locks || []
+            );
+            break;
+          case "cellLocked":
+            onCellLocked?.(
+              { row: message.row!, col: message.col! },
+              message.userId!
+            );
+            break;
+          case "cellUnlocked":
+            onCellUnlocked?.(
+              { row: message.row!, col: message.col! },
+              message.userId!
             );
             break;
           case "cellUpdated":
@@ -135,7 +154,15 @@ export function useSpreadsheetConnector({
         console.error("Error parsing WebSocket message:", error);
       }
     },
-    [onInitialData, onCellUpdate, onUserJoined, onUserLeft, onUserSelection]
+    [
+      onInitialData,
+      onCellUpdate,
+      onUserJoined,
+      onUserLeft,
+      onUserSelection,
+      onCellLocked,
+      onCellUnlocked,
+    ]
   );
   const handleOpen = useCallback(
     (ws: WebSocket) => {
@@ -178,13 +205,26 @@ export function useSpreadsheetConnector({
     [sendMessage, spreadsheetId]
   );
 
-  const focusCell = useCallback(
-    (row: number, col: number, userId: string) => {
+  const lockCell = useCallback(
+    (pos: Position, userId: string) => {
       sendMessage({
-        type: "focusCell",
+        type: "lockCell",
         spreadsheetId,
-        row,
-        col,
+        row: pos.row,
+        col: pos.col,
+        userId,
+      });
+    },
+    [sendMessage, spreadsheetId]
+  );
+
+  const unlockCell = useCallback(
+    (pos: Position, userId: string) => {
+      sendMessage({
+        type: "unlockCell",
+        spreadsheetId,
+        row: pos.row,
+        col: pos.col,
         userId,
       });
     },
@@ -208,10 +248,15 @@ export function useSpreadsheetConnector({
     [sendMessage, spreadsheetId]
   );
 
-  return {
+  const wsActions = {
     updateCell,
-    focusCell,
+    lockCell,
+    unlockCell,
     selectCell,
+  };
+
+  return {
+    wsActions,
     isConnected,
     error,
     activeUsers,

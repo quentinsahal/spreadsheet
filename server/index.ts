@@ -4,7 +4,7 @@ import { randomBytes } from "crypto";
 import Redis from "ioredis";
 
 const PORT = process.env.PORT || 4000;
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6381";
+const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
 
 // Redis clients
 const redis = new Redis(REDIS_URL);
@@ -54,6 +54,7 @@ interface ExtendedWebSocket extends WebSocket {
 const getSpreadsheetKey = (id: string) => `spreadsheet:${id}:cells`;
 const getActiveUsersKey = (id: string) => `spreadsheet:${id}:active_users`;
 const getSelectionsKey = (id: string) => `spreadsheet:${id}:selections`;
+const getLocksKey = (id: string) => `spreadsheet:${id}:locks`;
 const getChannelKey = (id: string) => `spreadsheet:${id}:events`;
 
 // Generate color from userName hash
@@ -109,7 +110,13 @@ const httpServer = fastify.server;
 const wss = new WebSocketServer({ server: httpServer });
 
 interface Message {
-  type: "join" | "updateCell" | "focusCell" | "selectCell" | "ping";
+  type:
+    | "join"
+    | "updateCell"
+    | "selectCell"
+    | "lockCell"
+    | "unlockCell"
+    | "ping";
   spreadsheetId?: string;
   row?: number;
   col?: number;
@@ -177,6 +184,13 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
               return { row: parseInt(row), col: parseInt(col), value };
             });
 
+          // Get current locks
+          const locksData = await redis.hgetall(getLocksKey(spreadsheetId));
+          const locks = Object.entries(locksData).map(([key, lockedBy]) => {
+            const [row, col] = key.split("-");
+            return { row: parseInt(row), col: parseInt(col), lockedBy };
+          });
+
           // Get active users (excluding self)
           const activeUsersData = await redis.hgetall(
             getActiveUsersKey(spreadsheetId)
@@ -207,6 +221,7 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
             JSON.stringify({
               type: "initialData",
               cells: cellData,
+              locks,
               activeUsers,
               selections,
             })
@@ -280,30 +295,73 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
           break;
         }
 
-        case "focusCell": {
+        case "lockCell": {
           const { spreadsheetId, row, col, userId } = message;
+          console.log("lockCell received:", {
+            spreadsheetId,
+            row,
+            col,
+            userId,
+          });
+
+          if (
+            !spreadsheetId ||
+            row === undefined ||
+            col === undefined ||
+            !userId
+          ) {
+            console.log("lockCell validation failed - missing fields");
+            return;
+          }
+
+          const key = `${row}-${col}`;
+          const redisKey = getLocksKey(spreadsheetId);
+          console.log("Writing to Redis:", { redisKey, key, userId });
+
+          const result = await redis.hset(redisKey, key, userId);
+          console.log("Redis hset result:", result);
+
+          // Verify write
+          const verification = await redis.hget(redisKey, key);
+          console.log("Verification read:", verification);
+
+          const payload = JSON.stringify({
+            type: "cellLocked",
+            row,
+            col,
+            userId,
+          });
+
+          const roomClients = clients.get(spreadsheetId) || new Set();
+          roomClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(payload);
+            }
+          });
+
+          break;
+        }
+
+        case "unlockCell": {
+          const { spreadsheetId, row, col } = message;
           if (!spreadsheetId || row === undefined || col === undefined) return;
 
-          console.log(
-            `Focus cell: ${spreadsheetId} [${row},${col}] by user ${userId}`
-          );
+          const key = `${row}-${col}`;
+          await redis.hdel(getLocksKey(spreadsheetId), key);
 
-          // Broadcast focus to other clients
-          const roomClients = clients.get(spreadsheetId);
-          if (roomClients) {
-            const focusMessage = JSON.stringify({
-              type: "cellFocused",
-              row,
-              col,
-              userId,
-            });
+          const payload = JSON.stringify({
+            type: "cellUnlocked",
+            row,
+            col,
+          });
 
-            roomClients.forEach((client) => {
-              if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(focusMessage);
-              }
-            });
-          }
+          const roomClients = clients.get(spreadsheetId) || new Set();
+          roomClients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+              client.send(payload);
+            }
+          });
+
           break;
         }
 

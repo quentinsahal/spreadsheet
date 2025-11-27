@@ -24,12 +24,16 @@ export const config = {
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
-export const createMatrix = (rows: number, cols: number) => {
-  const _matrix = new Array(rows);
-  for (let i = 0; i < rows; i++) {
-    _matrix[i] = new Array(cols);
+// Creates matrix as matrix[col][row] for column-first access
+export const createMatrix = (rows: number, cols: number): Matrix => {
+  const matrix: Matrix = new Array(cols);
+  for (let c = 0; c < cols; c++) {
+    matrix[c] = new Array(rows);
+    for (let r = 0; r < rows; r++) {
+      matrix[c][r] = { value: null };
+    }
   }
-  return _matrix;
+  return matrix;
 };
 
 export const hydrateMatrix = (
@@ -38,7 +42,7 @@ export const hydrateMatrix = (
 ) => {
   cells.forEach(({ row, col, value }) => {
     if (matrix[col] && row < matrix[col].length) {
-      matrix[col][row] = value;
+      matrix[col][row].value = value;
     }
   });
   return matrix;
@@ -59,7 +63,7 @@ export const getFirstCell = (matrix: Matrix): CellView => {
     y: 0,
     width: config.defaultColumnWidth,
     height: config.defaultRowHeight,
-    value: matrix[0][0],
+    value: matrix[0][0]?.value ?? null,
     row: 0,
     col: 0,
     name: `A1`,
@@ -89,7 +93,7 @@ export const getCellFromPageCoord = (
     y,
     width: config.defaultColumnWidth,
     height: config.defaultRowHeight,
-    value: matrix[position.col][position.row],
+    value: matrix[position.col][position.row]?.value ?? null,
     row: position.row,
     col: position.col,
     name: `${ALPHABET[position.col]}${position.row + 1}`,
@@ -109,7 +113,7 @@ export const getCellFromPosition = (
     y,
     width: config.defaultColumnWidth,
     height: config.defaultRowHeight,
-    value: matrix[position.col][position.row],
+    value: matrix[position.col][position.row]?.value ?? null,
     row: position.row,
     col: position.col,
     name: `${ALPHABET[position.col]}${position.row + 1}`,
@@ -126,8 +130,9 @@ export const resizeSheet = (canvas: HTMLCanvasElement, matrix: Matrix) => {
   }
 
   // Canvas size without headers (headers are now HTML elements positioned absolutely)
-  canvas.width = matrix[0].length * config.defaultColumnWidth;
-  canvas.height = matrix.length * config.defaultRowHeight;
+  // matrix[col][row] so matrix.length = cols, matrix[0].length = rows
+  canvas.width = matrix.length * config.defaultColumnWidth;
+  canvas.height = matrix[0].length * config.defaultRowHeight;
 
   canvas.style.width = canvas.width + "px";
   canvas.style.height = canvas.height + "px";
@@ -257,8 +262,8 @@ export const drawSheetContent = (
       const x = col * config.defaultColumnWidth;
       const y = row * config.defaultRowHeight;
 
-      const value = matrix[col][row];
-      if (value !== undefined) {
+      const value = matrix[col][row]?.value;
+      if (value !== undefined && value !== null) {
         ctx.font = `${config.textSize}px ${config.textFont}`;
         ctx.fillStyle = "#000";
         ctx.fillText(

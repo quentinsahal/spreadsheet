@@ -31,11 +31,16 @@ export type CellView = Coords &
   Position & {
     width: number;
     height: number;
-    value?: string | number;
+    value?: string | number | null;
     name: string;
   };
 
-export type Matrix = (number | string)[][];
+export type CellData = {
+  value: string | number | null;
+  lockedBy?: string;
+};
+
+export type Matrix = CellData[][];
 
 export enum Direction {
   Up = "Up",
@@ -48,12 +53,15 @@ export interface WebSocketMessage {
   type:
     | "initialData"
     | "cellUpdated"
+    | "cellLocked"
+    | "cellUnlocked"
     | "cellFocused"
     | "cellSelected"
     | "userJoined"
     | "userLeft"
     | "pong";
   cells?: Cell[];
+  locks?: { row: number; col: number; lockedBy: string }[];
   activeUsers?: ActiveUser[];
   selections?: UserSelection[];
   row?: number;

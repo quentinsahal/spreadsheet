@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Menu,
   MenuItem,
@@ -17,6 +18,7 @@ import {
 } from "@mui/icons-material";
 
 export function FileMenu() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -77,7 +79,7 @@ export function FileMenu() {
           },
         }}
       >
-        Fichier
+        {t("menu.file")}
       </Button>
       <Menu
         id="file-menu"
@@ -109,14 +111,14 @@ export function FileMenu() {
           <ListItemIcon>
             <AddIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Nouveau</ListItemText>
+          <ListItemText>{t("menu.new")}</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleOpen} disabled>
           <ListItemIcon>
             <OpenIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Ouvrir</ListItemText>
+          <ListItemText>{t("menu.open")}</ListItemText>
         </MenuItem>
 
         <Divider />
@@ -125,7 +127,7 @@ export function FileMenu() {
           <ListItemIcon>
             <CopyIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Créer une copie</ListItemText>
+          <ListItemText>{t("menu.duplicate")}</ListItemText>
         </MenuItem>
 
         <Divider />
@@ -134,7 +136,7 @@ export function FileMenu() {
           <ListItemIcon>
             <RenameIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Renommer</ListItemText>
+          <ListItemText>{t("menu.rename")}</ListItemText>
         </MenuItem>
 
         <Divider />
@@ -143,7 +145,7 @@ export function FileMenu() {
           <ListItemIcon>
             <DownloadIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Télécharger</ListItemText>
+          <ListItemText>{t("menu.download")}</ListItemText>
         </MenuItem>
       </Menu>
     </>

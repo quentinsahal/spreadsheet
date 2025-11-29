@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Divider } from "@mui/material";
 
 import "./Spreadsheet.css";
@@ -9,7 +10,8 @@ import { FileMenu } from "./FileMenu";
 import { ShareButton } from "./ShareButton";
 
 export const SpreadsheetMenu = () => {
-  const [name, setName] = useState<string>("Feuille de calcul sans titre");
+  const { t } = useTranslation();
+  const [name, setName] = useState<string>(t("spreadsheet.untitledName"));
   return (
     <div className="header-menu-wrapper">
       <div className="header-menu-title-row">

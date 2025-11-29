@@ -1,0 +1,45 @@
+{
+  "spreadsheet": {
+    "untitledName": "Feuille de calcul sans titre",
+    "loading": "Chargement des données..."
+  },
+  "menu": {
+    "file": "Fichier",
+    "new": "Nouveau",
+    "open": "Ouvrir",
+    "duplicate": "Créer une copie",
+    "rename": "Renommer",
+    "download": "Télécharger"
+  },
+  "share": {
+    "title": "Partager",
+    "scanToJoin": "Scannez pour rejoindre",
+    "copyLink": "Copier le lien",
+    "share": "Partager",
+    "linkCopied": "Lien copié !",
+    "joinMessage": "Rejoignez ma feuille de calcul"
+  },
+  "errors": {
+    "notFound": "Feuille de calcul \"{{id}}\" introuvable",
+    "connectionFailed": "Impossible de se connecter au serveur. Vérifiez votre connexion.",
+    "unauthorized": "Vous n'avez pas l'autorisation d'accéder à cette feuille de calcul",
+    "serverError": "Une erreur s'est produite. Veuillez réessayer plus tard.",
+    "unknown": "Une erreur inattendue s'est produite"
+  },
+  "homepage": {
+    "joinSpreadsheet": "Rejoindre une feuille de calcul",
+    "enterName": "Entrez votre nom",
+    "continue": "Continuer",
+    "welcomeUser": "Bienvenue, {{name}} !",
+    "createNew": "Créer une nouvelle feuille de calcul",
+    "or": "ou",
+    "enterSpreadsheetId": "Entrez l'ID de la feuille",
+    "joinExisting": "Rejoindre une feuille existante"
+  },
+  "auth": {
+    "enterName": "Entrez votre nom",
+    "namePlaceholder": "Votre nom",
+    "join": "Rejoindre",
+    "nameRequired": "Le nom est requis"
+  }
+}

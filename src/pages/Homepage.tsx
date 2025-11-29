@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { getErrorMessage } from "../lib/errors";
 import {
   Box,
@@ -14,6 +15,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 
 export function Homepage() {
+  const { t } = useTranslation();
   const savedName = sessionStorage.getItem("userName");
   const [name, setName] = useState(savedName || "");
   const [step, setStep] = useState<"name" | "action">(
@@ -127,12 +129,12 @@ export function Homepage() {
               textAlign="center"
               fontWeight={600}
             >
-              Join Spreadsheet
+              {t("homepage.joinSpreadsheet")}
             </Typography>
             <Box component="form" onSubmit={handleNameSubmit} sx={{ mt: 4 }}>
               <TextField
                 fullWidth
-                label="Enter your name"
+                label={t("homepage.enterName")}
                 variant="outlined"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -147,7 +149,7 @@ export function Homepage() {
                 size="large"
                 disabled={!name.trim()}
               >
-                Continue
+                {t("homepage.continue")}
               </Button>
             </Box>
           </>
@@ -160,7 +162,7 @@ export function Homepage() {
               textAlign="center"
               fontWeight={600}
             >
-              Welcome, {name}!
+              {t("homepage.welcomeUser", { name })}
             </Typography>
             <Box
               sx={{ mt: 4, display: "flex", flexDirection: "column", gap: 3 }}
@@ -179,19 +181,19 @@ export function Homepage() {
                   },
                 }}
               >
-                Create New Spreadsheet
+                {t("homepage.createNew")}
               </Button>
 
               <Divider>
                 <Typography variant="body2" color="text.secondary">
-                  or
+                  {t("homepage.or")}
                 </Typography>
               </Divider>
 
               <Box component="form" onSubmit={handleJoinExisting}>
                 <TextField
                   fullWidth
-                  label="Enter spreadsheet ID"
+                  label={t("homepage.enterSpreadsheetId")}
                   variant="outlined"
                   value={spreadsheetId}
                   onChange={(e) => {
@@ -210,7 +212,7 @@ export function Homepage() {
                   size="large"
                   disabled={!spreadsheetId.trim()}
                 >
-                  Join Existing Spreadsheet
+                  {t("homepage.joinExisting")}
                 </Button>
               </Box>
             </Box>

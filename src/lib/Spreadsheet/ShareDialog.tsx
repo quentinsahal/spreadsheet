@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogTitle,
@@ -27,6 +28,7 @@ interface ShareDialogProps {
 }
 
 export function ShareDialog({ open, onClose }: ShareDialogProps) {
+  const { t } = useTranslation();
   const { spreadsheetId } = useSpreadsheet();
   const [copied, setCopied] = useState(false);
   const [showSnackbar, setShowSnackbar] = useState(false);
@@ -49,7 +51,7 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
       try {
         await navigator.share({
           title: "Spreadsheet",
-          text: "Rejoignez ma feuille de calcul",
+          text: t("share.joinMessage"),
           url: shareUrl,
         });
       } catch (err) {
@@ -87,9 +89,13 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
           }}
         >
           <Typography variant="h6" component="span" fontWeight={500}>
-            Partager
+            {t("share.title")}
           </Typography>
-          <IconButton onClick={onClose} size="small" aria-label="Fermer">
+          <IconButton
+            onClick={onClose}
+            size="small"
+            aria-label={t("share.title")}
+          >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -125,7 +131,7 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
               color="text.secondary"
               sx={{ mt: 1.5 }}
             >
-              Scannez pour rejoindre
+              {t("share.scanToJoin")}
             </Typography>
           </Box>
 
@@ -143,7 +149,7 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
                       onClick={handleCopyLink}
                       edge="end"
                       size="small"
-                      aria-label="Copier le lien"
+                      aria-label={t("share.copyLink")}
                     >
                       {copied ? (
                         <CheckIcon color="success" fontSize="small" />
@@ -172,7 +178,7 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
               onClick={handleCopyLink}
               sx={{ textTransform: "none" }}
             >
-              Copier le lien
+              {t("share.copyLink")}
             </Button>
 
             {supportsNativeShare && (
@@ -183,7 +189,7 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
                 onClick={handleNativeShare}
                 sx={{ textTransform: "none" }}
               >
-                Partager
+                {t("share.share")}
               </Button>
             )}
           </Box>
@@ -201,7 +207,7 @@ export function ShareDialog({ open, onClose }: ShareDialogProps) {
           variant="filled"
           onClose={() => setShowSnackbar(false)}
         >
-          Lien copié !
+          {t("share.linkCopied")}
         </Alert>
       </Snackbar>
     </>

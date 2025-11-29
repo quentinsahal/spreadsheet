@@ -1,0 +1,12 @@
+# Development environment - local frontend and backend, containerized Redis
+
+services:
+  # Redis exposed on host for local backend
+  redis:
+    ports:
+      - "6379:6379"
+
+  # RedisInsight exposed on host
+  redisinsight:
+    ports:
+      - "5540:5540"

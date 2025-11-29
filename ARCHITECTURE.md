@@ -485,7 +485,7 @@ Could use `PIPELINE` for bulk operations (not critical at current scale).
 
 ```bash
 PORT=4000
-REDIS_URL=redis://localhost:6381
+REDIS_URL=redis://localhost:6379
 ```
 
 ### Multi-Server Setup

@@ -42,6 +42,14 @@ export function Homepage() {
     e.preventDefault();
     if (name.trim()) {
       sessionStorage.setItem("userName", name.trim());
+
+      // Check if there's a redirect URL
+      const redirectUrl = searchParams.get("redirect");
+      if (redirectUrl) {
+        navigate(decodeURIComponent(redirectUrl), { replace: true });
+        return;
+      }
+
       setStep("action");
     }
   };

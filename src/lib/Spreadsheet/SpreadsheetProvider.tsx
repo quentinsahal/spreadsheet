@@ -1,7 +1,6 @@
 import {
   createContext,
   useContext,
-  useReducer,
   useRef,
   useState,
   useCallback,
@@ -14,9 +13,11 @@ import type {
   Cell,
   ActiveUser,
   UserSelection,
+  Position,
 } from "../../typings";
 import { useSpreadsheetConnector } from "../../hooks/useSpreadsheetConnector";
 import { createMatrixFromCells } from "./helpers";
+import { debug } from "../debug";
 
 interface SpreadsheetContextValue {
   matrix: Matrix;
@@ -24,20 +25,19 @@ interface SpreadsheetContextValue {
   spreadsheetId: string | undefined;
   selectedCell: CellView | null;
   lastSelectedCell: CellView | null;
+  localLockedCell: Position | null;
   remoteSelections: Map<string, RemoteUserSelection>;
   activeUsers: ActiveUser[];
   isConnected: boolean;
   updateSelectedCell: (cell: CellView) => void;
-  updateCellContent: (
-    coords: Pick<CellView, "row" | "col">,
-    value: string | number
-  ) => void;
+  lockCell: (pos: Position) => void;
+  unlockCell: (pos: Position) => void;
+  updateCellContent: (pos: Position, value: string | number) => void;
 }
 
 interface SpreadsheetProviderProps {
   children: ReactNode;
-  spreadsheetId?: string;
-  wsUrl?: string;
+  spreadsheetId: string;
 }
 
 const SpreadsheetContext = createContext<SpreadsheetContextValue | null>(null);
@@ -45,9 +45,7 @@ const SpreadsheetContext = createContext<SpreadsheetContextValue | null>(null);
 export function SpreadsheetProvider({
   children,
   spreadsheetId,
-  wsUrl = "ws://localhost:4000",
 }: SpreadsheetProviderProps) {
-  const [, forceUpdate] = useReducer((x) => x + 1, 0);
   const matrixRef = useRef<Matrix>([]);
   const [matrixVersion, setMatrixVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,18 +57,32 @@ export function SpreadsheetProvider({
     Map<string, RemoteUserSelection>
   >(new Map());
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
+  const [localLockedCell, setLocalLockedCell] = useState<Position | null>(null);
 
   // WebSocket connector callbacks
   const handleInitialData = useCallback(
-    (cells: Cell[], activeUsers: ActiveUser[], selections: UserSelection[]) => {
-      console.log("Loading initial data from Redis:", {
-        cells,
-        activeUsers,
-        selections,
+    (
+      cells: Cell[],
+      activeUsers: ActiveUser[],
+      selections: UserSelection[],
+      locks: { row: number; col: number; lockedBy: string }[]
+    ) => {
+      debug.provider.log("Initial data from Redis", {
+        cells: cells.length,
+        activeUsers: activeUsers.length,
+        selections: selections.length,
+        locks: locks.length,
       });
 
       // Initialize matrix from Redis cells - always create proper matrix
       matrixRef.current = createMatrixFromCells(cells);
+
+      // Apply locks to matrix
+      locks.forEach(({ row, col, lockedBy }) => {
+        if (matrixRef.current[col] && matrixRef.current[col][row]) {
+          matrixRef.current[col][row].lockedBy = lockedBy;
+        }
+      });
 
       // Set active users
       setActiveUsers(activeUsers);
@@ -89,23 +101,21 @@ export function SpreadsheetProvider({
 
       setMatrixVersion((v) => v + 1);
       setIsLoading(false); // Finish loading after data is loaded
-      forceUpdate();
     },
     []
   );
 
   const handleCellUpdate = useCallback(
     (row: number, col: number, value: string) => {
-      console.log("Remote cell update:", row, col, value);
-      matrixRef.current[col][row] = value;
+      debug.provider.log("Remote cell update", { row, col, value });
+      matrixRef.current[col][row].value = value;
       setMatrixVersion((v) => v + 1);
-      forceUpdate();
     },
     []
   );
 
   const handleUserJoined = useCallback((userId: string, userName: string) => {
-    console.log("User joined:", userId, userName);
+    debug.provider.log("User joined", { userId, userName });
     setActiveUsers((prev) => {
       if (prev.some((u) => u.id === userId)) return prev;
       return [...prev, { id: userId, name: userName }];
@@ -113,7 +123,7 @@ export function SpreadsheetProvider({
   }, []);
 
   const handleUserLeft = useCallback((userId: string) => {
-    console.log("User left:", userId);
+    debug.provider.log("User left", { userId });
     setActiveUsers((prev) => prev.filter((u) => u.id !== userId));
     setRemoteSelections((prev) => {
       const next = new Map(prev);
@@ -130,7 +140,7 @@ export function SpreadsheetProvider({
       col: number,
       color: string
     ) => {
-      console.log("Remote user selection:", userName, row, col);
+      debug.provider.log("Remote selection", { userName, row, col });
       setRemoteSelections((prev) => {
         const next = new Map(prev);
         next.set(userId, { userName, row, col, color });
@@ -140,35 +150,79 @@ export function SpreadsheetProvider({
     []
   );
 
+  const handleCellLocked = useCallback((pos: Position) => {
+    if (pos.row === undefined || pos.col === undefined) return;
+    const cell = matrixRef.current[pos.col][pos.row];
+    if (cell) {
+      // Placeholder for future locking logic; for now just mark locally
+      cell.lockedBy = "remote";
+      setMatrixVersion((v) => v + 1);
+    }
+  }, []);
+
+  const handleCellUnlocked = useCallback((pos: Position) => {
+    if (pos.row === undefined || pos.col === undefined) return;
+    const cell = matrixRef.current[pos.col][pos.row];
+    if (cell) {
+      delete cell.lockedBy;
+      setMatrixVersion((v) => v + 1);
+    }
+  }, []);
+
   // Integrate WebSocket connector
-  const { updateCell, selectCell, isConnected } = useSpreadsheetConnector({
-    spreadsheetId: spreadsheetId ?? "",
-    url: wsUrl,
+  const { wsActions, isConnected } = useSpreadsheetConnector({
+    spreadsheetId,
     onInitialData: handleInitialData,
     onCellUpdate: handleCellUpdate,
     onUserJoined: handleUserJoined,
     onUserLeft: handleUserLeft,
     onUserSelection: handleUserSelection,
+    onCellLocked: handleCellLocked,
+    onCellUnlocked: handleCellUnlocked,
   });
 
   const updateCellContent = (
     coords: Pick<CellView, "row" | "col">,
     value: string | number
   ) => {
-    matrixRef.current[coords.col][coords.row] = value;
+    matrixRef.current[coords.col][coords.row].value = value;
     setLastSelectedCell(selectedCell);
     // Send WebSocket update
-    updateCell(coords.row, coords.col, value.toString());
+    wsActions.updateCell(coords.row, coords.col, value.toString());
     setSelectedCell((prev) => ({ ...prev, value } as CellView));
     setMatrixVersion((v) => v + 1);
-    forceUpdate();
   };
 
   const updateSelectedCell = (cell: CellView): void => {
     setSelectedCell(cell);
     // Send selection to WebSocket
-    selectCell(cell.row, cell.col);
+    wsActions.selectCell(cell.row, cell.col);
   };
+
+  const lockCell = useCallback(
+    (pos: Position) => {
+      const userId = sessionStorage.getItem("userId") || "";
+      // Release previous lock if any
+      if (localLockedCell) {
+        debug.provider.log("Releasing previous lock", localLockedCell);
+        wsActions.unlockCell(localLockedCell, userId);
+      }
+      debug.provider.log("Locking cell", pos);
+      wsActions.lockCell(pos, userId);
+      setLocalLockedCell(pos);
+    },
+    [localLockedCell, wsActions]
+  );
+
+  const unlockCell = useCallback(
+    (pos: Position) => {
+      const userId = sessionStorage.getItem("userId") || "";
+      debug.provider.log("Unlocking cell", pos);
+      wsActions.unlockCell(pos, userId);
+      setLocalLockedCell(null);
+    },
+    [wsActions]
+  );
 
   const value: SpreadsheetContextValue = {
     matrix: matrixRef.current,
@@ -180,6 +234,9 @@ export function SpreadsheetProvider({
     activeUsers,
     isConnected,
     updateSelectedCell,
+    localLockedCell,
+    lockCell,
+    unlockCell,
     updateCellContent,
   };
 

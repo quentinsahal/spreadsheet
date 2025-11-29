@@ -3,8 +3,8 @@ import { config } from "./helpers";
 
 export function RowHeaders() {
   const { matrix, selectedCell } = useSpreadsheet();
-  // Matrix is [rows][cols], so matrix.length gives us row count
-  const rowCount = matrix.length;
+  // Matrix is [col][row], so matrix[0].length gives us row count
+  const rowCount = matrix[0]?.length ?? 0;
 
   return (
     <div
@@ -41,6 +41,14 @@ export function RowHeaders() {
           {index + 1}
         </div>
       ))}
+      {/* Spacer to match horizontal scrollbar height */}
+      <div
+        style={{
+          width: config.rowHeaderWidth,
+          height: config.scrollbarWidth,
+          minHeight: config.scrollbarWidth,
+        }}
+      />
     </div>
   );
 }

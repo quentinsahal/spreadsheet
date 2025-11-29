@@ -1,0 +1,46 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  SSH_HOST: ${{ secrets.SSH_HOST }}
+  SSH_USER: ${{ secrets.SSH_USER }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Test SSH connection
+        run: |
+          ssh ${{ env.SSH_USER }}@${{ env.SSH_HOST }} 'echo "SSH connection successful"'
+      
+      - name: Run deployment script
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh
+      
+      - name: Deployment summary
+        if: success()
+        run: |
+          echo "✅ Deployment successful!"
+          echo "🌐 Frontend: https://docs.qshop.space"
+          echo "🌐 API: https://api.qshop.space"
+          echo "🌐 Admin: https://admin.qshop.space"

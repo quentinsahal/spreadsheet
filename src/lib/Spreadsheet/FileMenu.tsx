@@ -68,7 +68,7 @@ export function FileMenu() {
         sx={{
           color: "#444",
           textTransform: "none",
-          fontSize: "13px",
+          fontSize: "14px",
           fontWeight: 500,
           minWidth: "auto",
           padding: "2px 8px",
@@ -104,6 +104,17 @@ export function FileMenu() {
             minWidth: 220,
             boxShadow:
               "0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)",
+          },
+          "& .MuiMenuItem-root": {
+            py: 0.5,
+            minHeight: "auto",
+            fontSize: "0.75rem",
+          },
+          "& .MuiDivider-root": {
+            my: 0.5,
+          },
+          "& .MuiListItemText-primary": {
+            fontSize: "0.75rem",
           },
         }}
       >

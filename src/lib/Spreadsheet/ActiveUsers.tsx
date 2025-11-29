@@ -1,3 +1,5 @@
+import { Tooltip } from "@mui/material";
+
 interface User {
   id: string;
   name: string;
@@ -37,7 +39,8 @@ function getUserColor(userId: string, customColor?: string): string {
 
 export function ActiveUsers({ users, maxVisible = 3 }: ActiveUsersProps) {
   const visibleUsers = users.slice(0, maxVisible);
-  const remainingCount = users.length - maxVisible;
+  const hiddenUsers = users.slice(maxVisible);
+  const remainingCount = hiddenUsers.length;
 
   return (
     <div
@@ -49,55 +52,69 @@ export function ActiveUsers({ users, maxVisible = 3 }: ActiveUsersProps) {
       }}
     >
       {remainingCount > 0 && (
-        <div
-          title={`+${remainingCount} more`}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            backgroundColor: "#5f6368",
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            border: "2px solid white",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-            marginLeft: -12,
-            position: "relative",
-            zIndex: 0,
-          }}
+        <Tooltip
+          title={
+            <>
+              {hiddenUsers.slice(0, 10).map((u) => (
+                <div key={u.id}>{u.name}</div>
+              ))}
+              {hiddenUsers.length > 10 && (
+                <div>+{hiddenUsers.length - 10} more...</div>
+              )}
+            </>
+          }
+          arrow
+          placement="bottom"
         >
-          +{remainingCount}
-        </div>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              backgroundColor: "#5f6368",
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              border: "2px solid white",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              marginLeft: -12,
+              position: "relative",
+              zIndex: 0,
+            }}
+          >
+            +{remainingCount}
+          </div>
+        </Tooltip>
       )}
       {[...visibleUsers].reverse().map((user, index) => (
-        <div
-          key={user.id}
-          title={user.name}
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            backgroundColor: getUserColor(user.id, user.color),
-            color: "white",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: "pointer",
-            border: "2px solid white",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-            marginLeft: index === visibleUsers.length - 1 ? 0 : -12,
-            position: "relative",
-            zIndex: index + 1,
-          }}
-        >
-          {getInitials(user.name)}
-        </div>
+        <Tooltip key={user.id} title={user.name} arrow placement="bottom">
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: "50%",
+              backgroundColor: getUserColor(user.id, user.color),
+              color: "white",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              border: "2px solid white",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+              marginLeft: index === visibleUsers.length - 1 ? 0 : -12,
+              position: "relative",
+              zIndex: index + 1,
+            }}
+          >
+            {getInitials(user.name)}
+          </div>
+        </Tooltip>
       ))}
     </div>
   );

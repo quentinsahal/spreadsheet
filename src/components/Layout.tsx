@@ -13,8 +13,8 @@ export function Layout() {
           alignItems: "center",
           px: 1.5,
           py: 0.25,
-          backgroundColor: "#f5f5f5",
-          borderBottom: "1px solid #e0e0e0",
+          backgroundColor: "#0e2548ff",
+          borderBottom: "1px solid #2d4a6f",
         }}
       >
         <LanguageSwitcher />

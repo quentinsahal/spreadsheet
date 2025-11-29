@@ -18,6 +18,7 @@ export function LanguageSwitcher() {
       sx={{
         minWidth: 60,
         backgroundColor: "white",
+        borderRadius: 0,
         "& .MuiSelect-select": {
           py: 0.25,
           px: 1,
@@ -25,6 +26,7 @@ export function LanguageSwitcher() {
         },
         "& .MuiOutlinedInput-notchedOutline": {
           borderColor: "#e0e0e0",
+          borderRadius: 0,
         },
       }}
     >

@@ -40,6 +40,14 @@ export function ColumnHeaders() {
           {ALPHABET[index]}
         </div>
       ))}
+      {/* Spacer to match vertical scrollbar width */}
+      <div
+        style={{
+          width: config.scrollbarWidth,
+          minWidth: config.scrollbarWidth,
+          height: config.columnHeaderHeight,
+        }}
+      />
     </div>
   );
 }

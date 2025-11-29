@@ -20,6 +20,7 @@ export const config = {
   strokeWidth: 0.25,
   textSize: 16,
   textFont: "Roboto",
+  scrollbarWidth: 17, // Approximate, varies by OS/browser
 };
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

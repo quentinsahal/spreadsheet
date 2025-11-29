@@ -41,6 +41,14 @@ export function RowHeaders() {
           {index + 1}
         </div>
       ))}
+      {/* Spacer to match horizontal scrollbar height */}
+      <div
+        style={{
+          width: config.rowHeaderWidth,
+          height: config.scrollbarWidth,
+          minHeight: config.scrollbarWidth,
+        }}
+      />
     </div>
   );
 }

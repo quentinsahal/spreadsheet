@@ -96,6 +96,7 @@ export function SelectedCell({
         border: "2px solid #1a73e8",
         backgroundColor: "#fff",
         pointerEvents: "none",
+        boxSizing: "border-box",
       }}
     >
       {selectedCell?.value ?? ""}

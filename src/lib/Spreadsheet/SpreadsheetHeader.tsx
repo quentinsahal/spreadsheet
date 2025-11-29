@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { Divider } from "@mui/material";
 
 import "./Spreadsheet.css";
 import { SpreadsheetCompute } from "./SpreadsheetCompute";
 import { ActiveUsers } from "./ActiveUsers";
 import { useSpreadsheet } from "./SpreadsheetProvider";
 import { FileMenu } from "./FileMenu";
+import { ShareButton } from "./ShareButton";
 
 export const SpreadsheetMenu = () => {
   const [name, setName] = useState<string>("Feuille de calcul sans titre");
@@ -36,6 +38,8 @@ export const SpreadsheetHeader = () => {
         </div>
         <SpreadsheetMenu />
         <div className="header-actions">
+          <ShareButton />
+          <Divider orientation="vertical" sx={{ mx: 1, height: 40 }} />
           <ActiveUsers users={activeUsers} maxVisible={3} />
         </div>
       </div>

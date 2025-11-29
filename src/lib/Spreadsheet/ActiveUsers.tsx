@@ -1,4 +1,4 @@
-import { Tooltip } from "@mui/material";
+import { Tooltip, Box } from "@mui/material";
 
 interface User {
   id: string;
@@ -37,14 +37,30 @@ function getUserColor(userId: string, customColor?: string): string {
   return COLORS[index % COLORS.length];
 }
 
+const avatarBaseSx = {
+  width: 32,
+  height: 32,
+  borderRadius: "50%",
+  color: "white",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 12,
+  fontWeight: 600,
+  cursor: "pointer",
+  border: "2px solid white",
+  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+  position: "relative",
+};
+
 export function ActiveUsers({ users, maxVisible = 3 }: ActiveUsersProps) {
   const visibleUsers = users.slice(0, maxVisible);
   const hiddenUsers = users.slice(maxVisible);
   const remainingCount = hiddenUsers.length;
 
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: "flex",
         alignItems: "center",
         flexDirection: "row-reverse",
@@ -66,56 +82,32 @@ export function ActiveUsers({ users, maxVisible = 3 }: ActiveUsersProps) {
           arrow
           placement="bottom"
         >
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
+          <Box
+            sx={{
+              ...avatarBaseSx,
               backgroundColor: "#5f6368",
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              border: "2px solid white",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              marginLeft: -12,
-              position: "relative",
+              ml: -1.5,
               zIndex: 0,
             }}
           >
             +{remainingCount}
-          </div>
+          </Box>
         </Tooltip>
       )}
       {[...visibleUsers].reverse().map((user, index) => (
         <Tooltip key={user.id} title={user.name} arrow placement="bottom">
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
+          <Box
+            sx={{
+              ...avatarBaseSx,
               backgroundColor: getUserColor(user.id, user.color),
-              color: "white",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              border: "2px solid white",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
-              marginLeft: index === visibleUsers.length - 1 ? 0 : -12,
-              position: "relative",
+              ml: index === visibleUsers.length - 1 ? 0 : -1.5,
               zIndex: index + 1,
             }}
           >
             {getInitials(user.name)}
-          </div>
+          </Box>
         </Tooltip>
       ))}
-    </div>
+    </Box>
   );
 }

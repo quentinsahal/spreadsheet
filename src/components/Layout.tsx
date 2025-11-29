@@ -11,10 +11,9 @@ export function Layout() {
           display: "flex",
           justifyContent: "flex-end",
           alignItems: "center",
-          px: 1.5,
-          py: 0.25,
-          backgroundColor: "#0e2548ff",
-          borderBottom: "1px solid #2d4a6f",
+          px: 0,
+          py: 0,
+          backgroundColor: "#fff",
         }}
       >
         <LanguageSwitcher />

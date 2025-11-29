@@ -229,6 +229,7 @@ export function SpreadsheetCanvas() {
           right: 0,
           bottom: 0,
           overflow: "scroll",
+          overscrollBehavior: "none",
         }}
         onScroll={handleScroll}
       >

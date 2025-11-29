@@ -15,8 +15,16 @@ export function SelectedCell({
   onUnlockCell,
 }: SelectedCellProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { matrix, selectedCell, updateSelectedCell, updateCellContent } =
-    useSpreadsheet();
+  const {
+    matrix,
+    selectedCell,
+    updateSelectedCell,
+    draftValue,
+    setDraftValue,
+    updateCellContent,
+    discardDraftValue,
+  } = useSpreadsheet();
+
   useEffect(() => {
     if (mode === "edit" && inputRef.current) {
       inputRef.current.focus();
@@ -25,13 +33,17 @@ export function SelectedCell({
 
   useEffect(() => {
     // Handle Enter key to switch between edit and view modes
-    const handleEnterKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && selectedCell) {
+    // Handle Escape to cancel editing
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedCell) return;
+
+      if (e.key === "Enter") {
         e.preventDefault();
         if (mode === "view") {
           onLockCell({ row: selectedCell.row, col: selectedCell.col });
         }
         if (mode === "edit") {
+          updateCellContent();
           onUnlockCell({ row: selectedCell.row, col: selectedCell.col });
           updateSelectedCell(
             move(
@@ -42,10 +54,16 @@ export function SelectedCell({
           );
         }
       }
+
+      if (e.key === "Escape" && mode === "edit") {
+        e.preventDefault();
+        discardDraftValue(); // Cancel without saving
+        onUnlockCell({ row: selectedCell.row, col: selectedCell.col });
+      }
     };
-    document.addEventListener("keydown", handleEnterKey);
+    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("keydown", handleEnterKey);
+      document.removeEventListener("keydown", handleKeyDown);
     };
   }, [
     selectedCell,
@@ -54,20 +72,22 @@ export function SelectedCell({
     onLockCell,
     onUnlockCell,
     updateSelectedCell,
+    updateCellContent,
+    discardDraftValue,
   ]);
 
   if (mode === "edit") {
     return (
       <input
         ref={inputRef}
-        value={selectedCell?.value ?? ""}
+        value={draftValue ?? ""}
         onChange={(e) => {
-          if (selectedCell) {
-            updateCellContent(
-              { row: selectedCell.row, col: selectedCell.col },
-              e.target.value
-            );
-          }
+          setDraftValue(e.target.value);
+        }}
+        onBlur={() => {
+          // Commit when clicking outside the input
+          updateCellContent();
+          onUnlockCell({ row: selectedCell!.row, col: selectedCell!.col });
         }}
         style={{
           position: "absolute",

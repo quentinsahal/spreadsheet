@@ -1,0 +1,45 @@
+{
+  "spreadsheet": {
+    "untitledName": "Untitled spreadsheet",
+    "loading": "Loading spreadsheet data..."
+  },
+  "menu": {
+    "file": "File",
+    "new": "New",
+    "open": "Open",
+    "duplicate": "Make a copy",
+    "rename": "Rename",
+    "download": "Download"
+  },
+  "share": {
+    "title": "Share",
+    "scanToJoin": "Scan to join",
+    "copyLink": "Copy link",
+    "share": "Share",
+    "linkCopied": "Link copied!",
+    "joinMessage": "Join my spreadsheet"
+  },
+  "errors": {
+    "notFound": "Spreadsheet \"{{id}}\" not found",
+    "connectionFailed": "Failed to connect to server. Please check your connection.",
+    "unauthorized": "You don't have permission to access this spreadsheet",
+    "serverError": "Something went wrong. Please try again later.",
+    "unknown": "An unexpected error occurred"
+  },
+  "homepage": {
+    "joinSpreadsheet": "Join Spreadsheet",
+    "enterName": "Enter your name",
+    "continue": "Continue",
+    "welcomeUser": "Welcome, {{name}}!",
+    "createNew": "Create New Spreadsheet",
+    "or": "or",
+    "enterSpreadsheetId": "Enter spreadsheet ID",
+    "joinExisting": "Join Existing Spreadsheet"
+  },
+  "auth": {
+    "enterName": "Enter your name",
+    "namePlaceholder": "Your name",
+    "join": "Join",
+    "nameRequired": "Name is required"
+  }
+}

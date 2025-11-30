@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   Menu,
   MenuItem,
@@ -17,6 +18,7 @@ import {
 } from "@mui/icons-material";
 
 export function FileMenu() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -66,7 +68,7 @@ export function FileMenu() {
         sx={{
           color: "#444",
           textTransform: "none",
-          fontSize: "13px",
+          fontSize: "14px",
           fontWeight: 500,
           minWidth: "auto",
           padding: "2px 8px",
@@ -77,7 +79,7 @@ export function FileMenu() {
           },
         }}
       >
-        Fichier
+        {t("menu.file")}
       </Button>
       <Menu
         id="file-menu"
@@ -103,20 +105,31 @@ export function FileMenu() {
             boxShadow:
               "0 1px 3px 0 rgba(60,64,67,0.3), 0 4px 8px 3px rgba(60,64,67,0.15)",
           },
+          "& .MuiMenuItem-root": {
+            py: 0.5,
+            minHeight: "auto",
+            fontSize: "0.75rem",
+          },
+          "& .MuiDivider-root": {
+            my: 0.5,
+          },
+          "& .MuiListItemText-primary": {
+            fontSize: "0.75rem",
+          },
         }}
       >
         <MenuItem onClick={handleNewSpreadsheet}>
           <ListItemIcon>
             <AddIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Nouveau</ListItemText>
+          <ListItemText>{t("menu.new")}</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleOpen} disabled>
           <ListItemIcon>
             <OpenIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Ouvrir</ListItemText>
+          <ListItemText>{t("menu.open")}</ListItemText>
         </MenuItem>
 
         <Divider />
@@ -125,7 +138,7 @@ export function FileMenu() {
           <ListItemIcon>
             <CopyIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Créer une copie</ListItemText>
+          <ListItemText>{t("menu.duplicate")}</ListItemText>
         </MenuItem>
 
         <Divider />
@@ -134,7 +147,7 @@ export function FileMenu() {
           <ListItemIcon>
             <RenameIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Renommer</ListItemText>
+          <ListItemText>{t("menu.rename")}</ListItemText>
         </MenuItem>
 
         <Divider />
@@ -143,7 +156,7 @@ export function FileMenu() {
           <ListItemIcon>
             <DownloadIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Télécharger</ListItemText>
+          <ListItemText>{t("menu.download")}</ListItemText>
         </MenuItem>
       </Menu>
     </>

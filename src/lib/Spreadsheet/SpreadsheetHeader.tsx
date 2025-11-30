@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Divider } from "@mui/material";
+import { useTranslation } from "react-i18next";
+import { Box, Divider, InputBase } from "@mui/material";
 
-import "./Spreadsheet.css";
 import { SpreadsheetCompute } from "./SpreadsheetCompute";
 import { ActiveUsers } from "./ActiveUsers";
 import { useSpreadsheet } from "./SpreadsheetProvider";
@@ -9,22 +9,37 @@ import { FileMenu } from "./FileMenu";
 import { ShareButton } from "./ShareButton";
 
 export const SpreadsheetMenu = () => {
-  const [name, setName] = useState<string>("Feuille de calcul sans titre");
+  const { t } = useTranslation();
+  const [name, setName] = useState<string>(t("spreadsheet.untitledName"));
   return (
-    <div className="header-menu-wrapper">
-      <div className="header-menu-title-row">
-        <input
-          type="text"
-          name="spreadsheet-name"
-          className="header-menu-input"
+    <Box sx={{ flex: 4, display: "flex", flexDirection: "column" }}>
+      <Box sx={{ display: "flex", alignItems: "center" }}>
+        <InputBase
           value={name}
           onChange={(e) => setName(e.target.value)}
+          sx={{
+            height: 26,
+            width: 220,
+            fontFamily: "Roboto",
+            fontSize: 18,
+            backgroundColor: "#f5f5f5",
+            mx: 0.5,
+            px: 0.5,
+            borderRadius: 1,
+            "&:hover": {
+              backgroundColor: "#e8e8e8",
+            },
+            "&.Mui-focused": {
+              backgroundColor: "#fff",
+              outline: "1px solid #1a73e8",
+            },
+          }}
         />
-      </div>
-      <div className="header-menu-bar">
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
         <FileMenu />
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 };
 
@@ -32,17 +47,43 @@ export const SpreadsheetHeader = () => {
   const { activeUsers } = useSpreadsheet();
   return (
     <>
-      <div className="header">
-        <div className="header-logo">
+      <Box
+        sx={{
+          display: "flex",
+          gap: 1.25,
+          p: 0.625,
+          height: 100,
+          boxSizing: "border-box",
+          backgroundColor: "#f8f8f8ff",
+        }}
+      >
+        <Box
+          sx={{
+            flex: 0,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "flex-start",
+            mt: 1.25,
+          }}
+        >
           <img src="/vite.svg" alt="Logo" width="40px" />
-        </div>
+        </Box>
         <SpreadsheetMenu />
-        <div className="header-actions">
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 1.25,
+            width: "40%",
+          }}
+        >
           <ShareButton />
           <Divider orientation="vertical" sx={{ mx: 1, height: 40 }} />
           <ActiveUsers users={activeUsers} maxVisible={3} />
-        </div>
-      </div>
+        </Box>
+      </Box>
       <SpreadsheetCompute />
     </>
   );

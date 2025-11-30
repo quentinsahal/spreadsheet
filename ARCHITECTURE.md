@@ -32,6 +32,13 @@ A real-time collaborative spreadsheet application built with React, WebSockets, 
 - **Responsive Design**: Material UI components adapt to mobile/tablet/desktop
 - **Spreadsheet Validation**: Invalid IDs redirect to homepage with error notification
 
+### 4. Sharing
+
+- **QR Code**: Large scannable QR code for quick access (colleague scans from your screen)
+- **Copy Link**: One-click copy to clipboard with visual feedback
+- **Native Share**: Web Share API integration for mobile (WhatsApp, Messages, AirDrop, etc.)
+- **Adaptive UI**: Native share button shown only when browser supports it
+
 ---
 
 ## Architecture Decisions
@@ -332,7 +339,47 @@ type UserSelection = {
 
 ---
 
-### 7. **Centralized Error Mapping System**
+### 9. **Share Feature with QR Code and Web Share API**
+
+**Decision**: Provide multiple sharing methods - QR code, copy link, and native share.
+
+**Why**:
+
+- **QR Code**: Best for in-person sharing (show screen → colleague scans with phone)
+- **Copy Link**: Universal fallback, works everywhere (paste in Slack, email, etc.)
+- **Native Share**: Best UX on mobile (opens system share sheet with all apps)
+
+**Implementation**:
+
+```typescript
+// QR Code - using qrcode.react library
+<QRCodeSVG value={shareUrl} size={200} level="M" />;
+
+// Copy to clipboard
+await navigator.clipboard.writeText(shareUrl);
+
+// Native share (Web Share API)
+if (navigator.share) {
+  await navigator.share({
+    title: "Spreadsheet",
+    text: "Rejoignez ma feuille de calcul",
+    url: shareUrl,
+  });
+}
+```
+
+**Browser Support for Web Share API**:
+
+- ✅ Safari (iOS/macOS)
+- ✅ Chrome/Edge (Android, Windows, ChromeOS)
+- ❌ Firefox desktop
+- ⚠️ Chrome desktop (HTTPS only, limited)
+
+**UX Decision**: Show native share button only when `navigator.share` is available. QR code and copy link always visible.
+
+---
+
+### 10. **Centralized Error Mapping System**
 
 **Decision**: Create `lib/errors.ts` with `ERROR_MESSAGES` and `getErrorMessage()` utility.
 

@@ -24,7 +24,7 @@ type StateSetters = {
 };
 
 type UseDispatcherOptions = {
-  matrixRef: React.MutableRefObject<Matrix>;
+  matrixRef: React.RefObject<Matrix>;
   wsActions: WsActions;
   userId: string;
   state: {

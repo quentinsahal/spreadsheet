@@ -29,10 +29,13 @@ interface SpreadsheetContextValue {
   remoteSelections: Map<string, RemoteUserSelection>;
   activeUsers: ActiveUser[];
   isConnected: boolean;
+  draftValue: string | null;
   updateSelectedCell: (cell: CellView) => void;
   lockCell: (pos: Position) => void;
   unlockCell: (pos: Position) => void;
-  updateCellContent: (pos: Position, value: string | number) => void;
+  setDraftValue: (value: string) => void;
+  updateCellContent: () => void;
+  discardDraftValue: () => void;
 }
 
 interface SpreadsheetProviderProps {
@@ -49,15 +52,14 @@ export function SpreadsheetProvider({
   const matrixRef = useRef<Matrix>([]);
   const [matrixVersion, setMatrixVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastSelectedCell, setLastSelectedCell] = useState<CellView | null>(
-    null
-  );
+  const [lastSelectedCell] = useState<CellView | null>(null);
   const [selectedCell, setSelectedCell] = useState<CellView | null>(null);
   const [remoteSelections, setRemoteSelections] = useState<
     Map<string, RemoteUserSelection>
   >(new Map());
   const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
   const [localLockedCell, setLocalLockedCell] = useState<Position | null>(null);
+  const [draftValue, setDraftValueState] = useState<string | null>(null);
 
   // WebSocket connector callbacks
   const handleInitialData = useCallback(
@@ -181,17 +183,32 @@ export function SpreadsheetProvider({
     onCellUnlocked: handleCellUnlocked,
   });
 
-  const updateCellContent = (
-    coords: Pick<CellView, "row" | "col">,
-    value: string | number
-  ) => {
-    matrixRef.current[coords.col][coords.row].value = value;
-    setLastSelectedCell(selectedCell);
-    // Send WebSocket update
-    wsActions.updateCell(coords.row, coords.col, value.toString());
-    setSelectedCell((prev) => ({ ...prev, value } as CellView));
-    setMatrixVersion((v) => v + 1);
-  };
+  // Draft value functions - only send to server on commit
+  const setDraftValue = useCallback((value: string) => {
+    setDraftValueState(value);
+  }, []);
+
+  const updateCellContent = useCallback(() => {
+    if (selectedCell && draftValue !== null) {
+      debug.provider.log("Updating cell content", {
+        cell: selectedCell,
+        value: draftValue,
+      });
+      // Update matrix
+      matrixRef.current[selectedCell.col][selectedCell.row].value = draftValue;
+      // Send to server
+      wsActions.updateCell(selectedCell.row, selectedCell.col, draftValue);
+      // Update selected cell value
+      setSelectedCell((prev) => (prev ? { ...prev, value: draftValue } : null));
+      setMatrixVersion((v) => v + 1);
+    }
+    // Clear draft
+    setDraftValueState(null);
+  }, [selectedCell, draftValue, wsActions]);
+
+  const discardDraftValue = useCallback(() => {
+    setDraftValueState(null);
+  }, []);
 
   const updateSelectedCell = (cell: CellView): void => {
     setSelectedCell(cell);
@@ -210,6 +227,9 @@ export function SpreadsheetProvider({
       debug.provider.log("Locking cell", pos);
       wsActions.lockCell(pos, userId);
       setLocalLockedCell(pos);
+      // Initialize draft with current cell value
+      const currentValue = matrixRef.current[pos.col]?.[pos.row]?.value;
+      setDraftValueState(currentValue?.toString() ?? "");
     },
     [localLockedCell, wsActions]
   );
@@ -233,11 +253,14 @@ export function SpreadsheetProvider({
     remoteSelections,
     activeUsers,
     isConnected,
+    draftValue,
     updateSelectedCell,
     localLockedCell,
     lockCell,
     unlockCell,
+    setDraftValue,
     updateCellContent,
+    discardDraftValue,
   };
 
   if (isLoading) {

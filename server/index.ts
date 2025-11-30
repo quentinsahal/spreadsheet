@@ -112,6 +112,7 @@ const wss = new WebSocketServer({ server: httpServer });
 interface Message {
   type:
     | "join"
+    | "leave"
     | "updateCell"
     | "selectCell"
     | "lockCell"
@@ -139,10 +140,46 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
       const message: Message = JSON.parse(data.toString());
 
       console.log("Received message:", message);
+      // Helper to leave current room
+      const leaveCurrentRoom = async () => {
+        const { userId, spreadsheetId: oldSpreadsheetId } = ws;
+        if (!oldSpreadsheetId || !userId) return;
+
+        const roomClients = clients.get(oldSpreadsheetId);
+        if (roomClients) {
+          roomClients.delete(ws);
+          if (roomClients.size === 0) {
+            clients.delete(oldSpreadsheetId);
+          }
+        }
+
+        // Clean up Redis
+        await redis.hdel(getActiveUsersKey(oldSpreadsheetId), userId);
+        await redis.hdel(getSelectionsKey(oldSpreadsheetId), userId);
+
+        // Notify others in the old room
+        const userLeftMessage = JSON.stringify({
+          type: "userLeft",
+          userId,
+        });
+        roomClients?.forEach((client) => {
+          if (client.readyState === WebSocket.OPEN) {
+            client.send(userLeftMessage);
+          }
+        });
+
+        console.log(`User ${userId} left spreadsheet ${oldSpreadsheetId}`);
+      };
+
       switch (message.type) {
         case "join": {
           const { spreadsheetId, userId, userName } = message;
           if (!spreadsheetId) return;
+
+          // Auto-leave previous room if switching spreadsheets
+          if (ws.spreadsheetId && ws.spreadsheetId !== spreadsheetId) {
+            await leaveCurrentRoom();
+          }
 
           // Store user info directly on WebSocket
           ws.spreadsheetId = spreadsheetId;
@@ -423,6 +460,14 @@ wss.on("connection", (ws: ExtendedWebSocket) => {
               }
             });
           }
+          break;
+        }
+
+        case "leave": {
+          await leaveCurrentRoom();
+          ws.spreadsheetId = undefined;
+          ws.userId = undefined;
+          ws.userName = undefined;
           break;
         }
 

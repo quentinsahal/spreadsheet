@@ -4,12 +4,13 @@ import "./Spreadsheet.css";
 import { SpreadsheetCompute } from "./SpreadsheetCompute";
 import { ActiveUsers } from "./ActiveUsers";
 import { useSpreadsheet } from "./SpreadsheetProvider";
+import { FileMenu } from "./FileMenu";
 
 export const SpreadsheetMenu = () => {
   const [name, setName] = useState<string>("Feuille de calcul sans titre");
   return (
     <div className="header-menu-wrapper">
-      <div>
+      <div className="header-menu-title-row">
         <input
           type="text"
           name="spreadsheet-name"
@@ -18,8 +19,9 @@ export const SpreadsheetMenu = () => {
           onChange={(e) => setName(e.target.value)}
         />
       </div>
-      <div className="header-menu"></div>
-      <div className="header-menu-compute"></div>
+      <div className="header-menu-bar">
+        <FileMenu />
+      </div>
     </div>
   );
 };
@@ -30,7 +32,7 @@ export const SpreadsheetHeader = () => {
     <>
       <div className="header">
         <div className="header-logo">
-          <img src="/vite.svg" alt="Logo" />
+          <img src="/vite.svg" alt="Logo" width="40px" />
         </div>
         <SpreadsheetMenu />
         <div className="header-actions">

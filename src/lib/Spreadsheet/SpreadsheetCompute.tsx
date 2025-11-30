@@ -4,8 +4,18 @@ import { useSpreadsheet } from "./SpreadsheetProvider";
 import { getFirstCell } from "./helpers";
 
 export function SpreadsheetCompute() {
-  const { matrix, selectedCell, updateSelectedCell, updateCellContent } =
-    useSpreadsheet();
+  const {
+    matrix,
+    selectedCell,
+    updateSelectedCell,
+    draftValue,
+    setDraftValue,
+  } = useSpreadsheet();
+
+  // Show draft value if editing, otherwise show cell value
+  const displayValue =
+    draftValue !== null ? draftValue : selectedCell?.value ?? "";
+
   return (
     <Box
       sx={{
@@ -30,7 +40,7 @@ export function SpreadsheetCompute() {
       <TextField
         fullWidth
         variant="outlined"
-        value={selectedCell?.value ?? ""}
+        value={displayValue}
         onFocus={() => {
           if (!selectedCell) {
             updateSelectedCell(getFirstCell(matrix));
@@ -38,10 +48,7 @@ export function SpreadsheetCompute() {
         }}
         onChange={(e) => {
           if (selectedCell) {
-            updateCellContent(
-              { row: selectedCell.row, col: selectedCell.col },
-              e.target.value
-            );
+            setDraftValue(e.target.value);
           }
         }}
         size="small"

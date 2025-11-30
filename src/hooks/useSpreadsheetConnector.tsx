@@ -63,6 +63,21 @@ export function useSpreadsheetConnector({
     });
   }, [isConnected, spreadsheetId, sendMessage]);
 
+  // Leave room on spreadsheetId change or unmount (separate from connection state)
+  useEffect(() => {
+    const userId = sessionStorage.getItem("userId");
+
+    return () => {
+      if (!userId) return;
+      debug.ws.log("Leaving spreadsheet", spreadsheetId);
+      sendMessage({
+        type: "leave",
+        spreadsheetId,
+        userId,
+      });
+    };
+  }, [spreadsheetId, sendMessage]);
+
   // Subscribe to messages
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {

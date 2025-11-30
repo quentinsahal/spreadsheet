@@ -13,6 +13,8 @@ A real-time collaborative spreadsheet application built with React, WebSockets, 
 - **Live Cell Editing**: Changes propagate instantly to all connected users
 - **User Presence**: Display active users with avatars/names
 - **Remote Selections**: Visualize where other users are currently focused (color-coded per user)
+- **Cell Locking**: Prevents concurrent edits - cells are locked when a user starts editing
+- **Draft Value System**: Local edits are batched and only sent to server on commit (Enter/blur)
 - **Multi-Server Support**: Redis pub/sub enables horizontal scaling across multiple server instances
 
 ### 2. Data Persistence
@@ -20,6 +22,7 @@ A real-time collaborative spreadsheet application built with React, WebSockets, 
 - **Redis Storage**: All spreadsheet data persisted in Redis with AOF + RDB
 - **Automatic Recovery**: Data survives server restarts
 - **Per-Spreadsheet Isolation**: Each spreadsheet has its own Redis hash keys
+- **Cell Locks Storage**: Individual lock keys with 1-hour TTL for automatic cleanup
 
 ### 3. User Experience
 
@@ -202,7 +205,104 @@ ws.on("pong", () => {
 
 ---
 
-6. Interfaces
+### 6. **App-Level SocketProvider with Room Management**
+
+**Decision**: Separate WebSocket connection (`SocketProvider`) from spreadsheet logic (`useSpreadsheetConnector`), with explicit room join/leave events.
+
+**Why**:
+
+- **Reusability**: Socket connection can be used by future features (chat, notifications)
+- **Pub/Sub Pattern**: Subscribers register handlers, provider broadcasts messages to all
+- **Clean Room Isolation**: Explicit `join` and `leave` events ensure users only receive events for their current spreadsheet
+
+**Architecture**:
+
+```
+App
+└── SocketProvider (single WebSocket connection)
+    └── SpreadsheetProvider
+        └── useSpreadsheetConnector (joins/leaves rooms, handles spreadsheet messages)
+```
+
+**Room Management**:
+
+```typescript
+// Join effect - depends on connection state AND spreadsheetId
+useEffect(() => {
+  if (!isConnected) return;
+  sendMessage({ type: "join", spreadsheetId, userId, userName });
+}, [isConnected, spreadsheetId, sendMessage]);
+
+// Leave effect - ONLY depends on spreadsheetId (not connection state)
+// This preserves the server's grace period on temporary disconnects
+useEffect(() => {
+  return () => {
+    sendMessage({ type: "leave", spreadsheetId, userId });
+  };
+}, [spreadsheetId, sendMessage]);
+```
+
+**Why Separate Effects**:
+
+- `isConnected` flipping to `false` (disconnect) should NOT trigger a leave
+- Only spreadsheet navigation or component unmount should send leave
+- This allows the server's 5-second grace period to work correctly on network blips
+
+---
+
+### 7. **Cell Locking with Draft Value System**
+
+**Decision**: Lock cells when editing starts, batch local changes, send to server only on commit.
+
+**Why**:
+
+- **Conflict Prevention**: Locked cells show a visual indicator and prevent concurrent edits
+- **Reduced Network Traffic**: Keystrokes stay local, only final value is sent
+- **Better UX**: Users see their changes immediately, no network latency per keystroke
+- **Graceful Cancel**: Escape key discards draft without sending to server
+
+**Data Structure**:
+
+```typescript
+// Matrix cells now include lock info
+type CellData = {
+  value: string | number | null;
+  lockedBy?: string; // userId of the user who locked the cell
+};
+
+type Matrix = CellData[][];
+```
+
+**Flow**:
+
+```
+1. User clicks cell → lockCell(pos) → sends lockCell to server
+2. Server stores lock in Redis with 1h TTL, broadcasts cellLocked
+3. User types → setDraftValue(value) → local only, no server call
+4. User commits (Enter/blur/click elsewhere) → updateCellContent()
+   → Updates matrix + sends updateCell to server
+5. User moves to another cell → unlockCell(pos) → sends unlockCell to server
+```
+
+**Cancel Flow**:
+
+```
+1. User presses Escape → discardDraftValue() → clears draft
+2. Cell content reverts to original value (no server call)
+3. unlockCell() is still called when user clicks elsewhere
+```
+
+**Server Lock Storage**:
+
+```typescript
+// Individual keys with TTL (auto-cleanup if client crashes)
+const lockKey = `spreadsheet:${id}:locks:${row}-${col}`;
+await redis.setex(lockKey, 3600, userId); // 1 hour TTL
+```
+
+---
+
+### 8. **Interfaces**
 
 **Type Hierarchy**:
 
@@ -299,38 +399,137 @@ export default defineConfig({
 ```
 Client                    Server                     Redis
   |                         |                          |
-  |----join(id, userId)---->|                          |
-  |                         |---HSET active_users----->|
-  |                         |---HGETALL cells--------->|
-  |                         |---HGETALL selections---->|
-  |<---initialData----------|                          |
-  |                         |---broadcast userJoined-->| (pub/sub)
-```
-
-### 2. User Updates Cell
-
-```
-Client                    Server                     Redis
+  |----join(spreadsheetId,  |                          |
+  |        userId,userName) |                          |
+  |------------------------>|                          |
+  |                         |--HSET active_users------>|
+  |                         |--HGETALL cells---------->|
+  |                         |--HGETALL selections----->|
+  |                         |--KEYS locks:*----------->|
+  |                         |<---(all data)------------|
+  |<--initialData(cells,    |                          |
+  |    users,selections,    |                          |
+  |    locks)---------------|                          |
   |                         |                          |
-  |---updateCell(r,c,val)-->|                          |
-  |                         |---HSET cell------------->|
-  |                         |---PUBLISH cellUpdated--->| (pub/sub)
-  |                         |                          |
-  |                         |---broadcast cellUpdated->| (to local clients)
-Other Clients <-------------|<---message from sub------| (from other servers)
+  |                         |--broadcast userJoined--->| (to room clients)
 ```
 
-### 3. User Selects Cell
+### 2. User Leaves Spreadsheet (Navigation or Unmount)
 
 ```
 Client                    Server                     Redis
   |                         |                          |
-  |---selectCell(r,c)------>|                          |
-  |                         |---HSET selections------->|
-  |                         |---PUBLISH cellSelected-->| (pub/sub)
+  |----leave(spreadsheetId, |                          |
+  |         userId)-------->|                          |
+  |                         |--remove from roomClients |
+  |                         |--HDEL active_users------>|
+  |                         |--HDEL selections-------->|
   |                         |                          |
-  |                         |---broadcast cellSelected>| (to local clients)
-Other Clients <-------------|<---message from sub------| (from other servers)
+  |                         |--broadcast userLeft----->| (to room clients)
+```
+
+### 3. User Disconnects (Network Drop)
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |----(connection lost)--->|                          |
+  |                         |--remove from roomClients |
+  |                         |                          |
+  |                         |---(wait 5s grace)------->|
+  |                         |                          |
+  |                         |  (if not reconnected)    |
+  |                         |--HDEL active_users------>|
+  |                         |--HDEL selections-------->|
+  |                         |--broadcast userLeft----->|
+```
+
+### 4. User Locks Cell (Starts Editing)
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |----lockCell(row,col,    |                          |
+  |             userId)---->|                          |
+  |                         |--SETEX lock (1h TTL)---->|
+  |                         |                          |
+  |<---cellLocked-----------|                          |
+  |                         |--broadcast cellLocked--->| (to room clients)
+```
+
+### 5. User Types in Cell (Draft Value - Local Only)
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |--setDraftValue(value)   |                          |
+  |  (local state only)     |                          |
+  |                         |                          |
+  |  (no server call)       |                          |
+```
+
+### 6. User Commits Cell (Enter/Blur/Click Elsewhere)
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |----updateCell(row,col,  |                          |
+  |              value)---->|                          |
+  |                         |--HSET cells------------->|
+  |                         |                          |
+  |                         |--broadcast cellUpdated-->| (to room clients)
+  |                         |                          |
+  |----unlockCell(row,col)->|                          |
+  |                         |--DEL lock--------------->|
+  |                         |                          |
+  |                         |--broadcast cellUnlocked->| (to room clients)
+```
+
+### 7. User Cancels Edit (Escape Key)
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |--discardDraftValue()    |                          |
+  |  (local state only)     |                          |
+  |                         |                          |
+  |  (no updateCell sent)   |                          |
+  |                         |                          |
+  |  (unlockCell sent when  |                          |
+  |   clicking elsewhere)   |                          |
+```
+
+### 8. User Selects Cell (Cursor Movement)
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |----selectCell(row,col,  |                          |
+  |        userId,userName) |                          |
+  |------------------------>|                          |
+  |                         |--HSET selections-------->|
+  |                         |                          |
+  |                         |--broadcast cellSelected->| (to room clients)
+```
+
+### 9. User Reconnects After Disconnect
+
+```
+Client                    Server                     Redis
+  |                         |                          |
+  |----join(spreadsheetId,  |                          |
+  |        userId,userName) |                          |
+  |------------------------>|                          |
+  |                         |  (within 5s grace)       |
+  |                         |  (user still in Redis)   |
+  |                         |                          |
+  |                         |--HGETALL cells---------->|
+  |                         |--HGETALL selections----->|
+  |                         |--KEYS locks:*----------->|
+  |<--initialData-----------|                          |
+  |                         |                          |
+  |                         |  (no userJoined broadcast|
+  |                         |   if was still active)   |
 ```
 
 ---
@@ -343,6 +542,7 @@ Other Clients <-------------|<---message from sub------| (from other servers)
 spreadsheet:{id}:cells           HASH   { "row-col": "value" }
 spreadsheet:{id}:active_users    HASH   { userId: userName }
 spreadsheet:{id}:selections      HASH   { userId: JSON({row,col,color,userName}) }
+spreadsheet:{id}:locks:{row-col} STRING userId (with 1h TTL)
 spreadsheet:{id}:events          CHANNEL (pub/sub for cross-server sync)
 ```
 
@@ -353,6 +553,7 @@ HSET spreadsheet:abc123:cells "0-0" "Hello"
 HSET spreadsheet:abc123:cells "1-2" "World"
 HSET spreadsheet:abc123:active_users "user1" "Alice"
 HSET spreadsheet:abc123:selections "user1" '{"row":0,"col":0,"color":"#1a73e8","userName":"Alice"}'
+SETEX spreadsheet:abc123:locks:0-0 3600 "user1"
 ```
 
 ---
@@ -397,10 +598,19 @@ SpreadsheetCanvas (UI)
   type: "join", spreadsheetId, userId, userName;
 }
 {
+  type: "leave", spreadsheetId, userId;
+}
+{
   type: "updateCell", spreadsheetId, row, col, value;
 }
 {
   type: "selectCell", spreadsheetId, userId, userName, row, col;
+}
+{
+  type: "lockCell", spreadsheetId, row, col, userId;
+}
+{
+  type: "unlockCell", spreadsheetId, row, col, userId;
 }
 {
   type: "ping";
@@ -410,9 +620,11 @@ SpreadsheetCanvas (UI)
 ### Server → Client
 
 ```typescript
-{ type: "initialData", cells: Cell[], activeUsers: ActiveUser[], selections: UserSelection[] }
+{ type: "initialData", cells: Cell[], activeUsers: ActiveUser[], selections: UserSelection[], locks: Lock[] }
 { type: "cellUpdated", row, col, value }
 { type: "cellSelected", userId, userName, row, col, color }
+{ type: "cellLocked", row, col, userId }
+{ type: "cellUnlocked", row, col }
 { type: "userJoined", userId, userName }
 { type: "userLeft", userId }
 { type: "pong" }
@@ -429,22 +641,18 @@ SpreadsheetCanvas (UI)
 3. **No Conflict Resolution**: Last write wins (acceptable for spreadsheet use case)
 4. **Matrix Size**: Fixed 100 rows × 26 columns (could be dynamic)
 5. **No Undo/Redo**: History not tracked
-6. **No Input Debouncing**: Each keystroke sends WebSocket message immediately (could cause network overhead)
-7. **No Cell Locking**: Multiple users can edit same cell simultaneously without coordination
 
 ### Potential Improvements
 
-1. **Input Debouncing**: Batch rapid keystrokes (e.g., 300ms delay) to reduce WebSocket message frequency
-2. **Optimistic Cell Locking**: Show visual indicator when another user is editing a cell, prevent concurrent edits
-3. **Operational Transforms (OT)**: Handle concurrent edits more gracefully
-4. **Cell Formulas**: Compute `=SUM(A1:A10)` and propagate changes
-5. **Rich Text**: Bold, italic, colors, fonts
-6. **Cell Merging**: Span multiple rows/columns
-7. **Data Validation**: Restrict cell input (numbers only, date format, etc.)
-8. **Export/Import**: CSV, Excel formats
-9. **Version History**: Track changes over time
-10. **Comments**: Cell-level annotations
-11. **Offline Mode**: Local-first with sync on reconnect
+1. **Operational Transforms (OT)**: Handle concurrent edits more gracefully
+2. **Cell Formulas**: Compute `=SUM(A1:A10)` and propagate changes
+3. **Rich Text**: Bold, italic, colors, fonts
+4. **Cell Merging**: Span multiple rows/columns
+5. **Data Validation**: Restrict cell input (numbers only, date format, etc.)
+6. **Export/Import**: CSV, Excel formats
+7. **Version History**: Track changes over time
+8. **Comments**: Cell-level annotations
+9. **Offline Mode**: Local-first with sync on reconnect
 
 ---
 
@@ -454,9 +662,9 @@ SpreadsheetCanvas (UI)
 
 Auto-memoizes components, reducing unnecessary re-renders.
 
-### 2. Canvas Rendering
+### 2. Canvas Rendering (Implemented)
 
-Direct canvas manipulation instead of rendering 2,600 DOM elements (100 rows × 26 cols).
+Uses direct canvas manipulation instead of rendering 2,600 DOM elements (100 rows × 26 cols). Grid lines, cell content, and backgrounds are painted directly to a `<canvas>` element, with React only managing the overlay components (SelectedCell, RemoteSelections).
 
 ### 3. WebSocket Batching
 

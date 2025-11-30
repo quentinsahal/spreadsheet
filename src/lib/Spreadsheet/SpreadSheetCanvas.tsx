@@ -7,11 +7,10 @@ import { SelectedCell } from "./SelectedCell";
 import { ColumnHeaders } from "./ColumnHeaders";
 import { RowHeaders } from "./RowHeaders";
 import { RemoteSelections } from "./RemoteSelections";
-import type { Position } from "../../typings";
 import { debug } from "../debug";
 
 export function SpreadsheetCanvas() {
-  const [action, setAction] = useState<"view" | "edit">("view");
+  // Local UI state for canvas rendering
   const [redrawTrigger, setRedrawTrigger] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const clickTimerRef = useRef<number | null>(null);
@@ -19,15 +18,12 @@ export function SpreadsheetCanvas() {
   const columnHeaderRef = useRef<HTMLDivElement>(null);
   const rowHeaderRef = useRef<HTMLDivElement>(null);
 
-  const {
-    localLockedCell,
-    matrix,
-    matrixVersion,
-    selectedCell,
-    lockCell,
-    unlockCell,
-    updateSelectedCell,
-  } = useSpreadsheet();
+  // Get state and dispatch from context
+  const { localLockedCell, matrix, matrixVersion, selectedCell, dispatch } =
+    useSpreadsheet();
+
+  // Derive editing state from localLockedCell
+  const isEditing = localLockedCell !== null;
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -80,29 +76,54 @@ export function SpreadsheetCanvas() {
         localLockedCell.col !== selectedCell.col)
     ) {
       debug.canvas.log("Selection changed, unlocking", localLockedCell);
-      unlockCell(localLockedCell);
-      setAction("view");
+      dispatch({ type: "UNLOCK_CELL", pos: localLockedCell });
     }
-  }, [selectedCell, localLockedCell, unlockCell]);
+  }, [selectedCell, localLockedCell, dispatch]);
 
   useEffect(() => {
     // Event pour se balader avec le clavier dans les cellules
     const handleKeyPress = (e: KeyboardEvent) => {
-      if (selectedCell && action === "view") {
-        e.preventDefault();
-        const nextCell = move(
-          matrix,
-          { x: selectedCell.col, y: selectedCell.row },
-          keyToDirection(e.key)
-        );
-
-        updateSelectedCell({ ...nextCell });
+      // Only allow navigation when not editing
+      if (selectedCell && !isEditing) {
+        const direction = keyToDirection(e.key);
+        // Only handle arrow keys for navigation
+        if (direction !== null) {
+          e.preventDefault();
+          const nextCell = move(
+            matrix,
+            { x: selectedCell.col, y: selectedCell.row },
+            direction
+          );
+          dispatch({ type: "SELECT_CELL", cell: nextCell });
+        }
       }
     };
 
     document.addEventListener("keydown", handleKeyPress);
     return () => document.removeEventListener("keydown", handleKeyPress);
-  }, [selectedCell, action, matrix, updateSelectedCell]);
+  }, [selectedCell, isEditing, matrix, dispatch]);
+
+  // Undo/Redo keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Support both Cmd (Mac) and Ctrl (Windows/Linux)
+      const modifier = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      if (modifier && key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch({ type: "UNDO" });
+      } else if (modifier && ((key === "z" && e.shiftKey) || key === "y")) {
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch({ type: "REDO" });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [dispatch]);
 
   const handleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (clickTimerRef.current) {
@@ -115,22 +136,9 @@ export function SpreadsheetCanvas() {
         y: e.nativeEvent.offsetY + config.columnHeaderHeight,
       });
       debug.canvas.log("Single click", cell);
-      setAction("view");
-      updateSelectedCell({ ...cell });
+      dispatch({ type: "SELECT_CELL", cell });
       clickTimerRef.current = null;
     }, 150);
-  };
-
-  const handleLockCell = (pos: Position) => {
-    debug.canvas.log("Locking cell", pos);
-    lockCell({ row: pos.row, col: pos.col });
-    setAction("edit");
-  };
-
-  const handleUnlockCell = () => {
-    debug.canvas.log("Unlocking cell");
-    unlockCell({ row: selectedCell!.row, col: selectedCell!.col });
-    setAction("view");
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -153,8 +161,9 @@ export function SpreadsheetCanvas() {
       return;
     }
 
-    updateSelectedCell({ ...cell });
-    handleLockCell({ row: cell.row, col: cell.col });
+    debug.canvas.log("Double click - selecting and locking", cell);
+    dispatch({ type: "SELECT_CELL", cell });
+    dispatch({ type: "LOCK_CELL", pos: { row: cell.row, col: cell.col } });
   };
 
   return (
@@ -241,13 +250,7 @@ export function SpreadsheetCanvas() {
             onDoubleClick={handleDoubleClick}
           ></canvas>
           <RemoteSelections />
-          {action && (
-            <SelectedCell
-              mode={action}
-              onLockCell={handleLockCell}
-              onUnlockCell={handleUnlockCell}
-            />
-          )}
+          {selectedCell && <SelectedCell />}
         </div>
       </div>
     </div>

@@ -1,35 +1,21 @@
 import { useEffect, useRef } from "react";
 import { useSpreadsheet } from "./SpreadsheetProvider";
 import { move } from "./helpers";
-import { Direction, type Position } from "../../typings";
+import { Direction } from "../../typings";
 
-type Mode = "edit" | "view";
-export type SelectedCellProps = {
-  mode: Mode;
-  onLockCell: (pos: Position) => void;
-  onUnlockCell: (pos: Position) => void;
-};
-export function SelectedCell({
-  mode,
-  onLockCell,
-  onUnlockCell,
-}: SelectedCellProps) {
+export function SelectedCell() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const {
-    matrix,
-    selectedCell,
-    updateSelectedCell,
-    draftValue,
-    setDraftValue,
-    updateCellContent,
-    discardDraftValue,
-  } = useSpreadsheet();
+  const { matrix, selectedCell, localLockedCell, draftValue, dispatch } =
+    useSpreadsheet();
+
+  // Derive mode from state - no props needed
+  const isEditing = localLockedCell !== null;
 
   useEffect(() => {
-    if (mode === "edit" && inputRef.current) {
+    if (isEditing && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [mode]);
+  }, [isEditing]);
 
   useEffect(() => {
     // Handle Enter key to switch between edit and view modes
@@ -39,55 +25,74 @@ export function SelectedCell({
 
       if (e.key === "Enter") {
         e.preventDefault();
-        if (mode === "view") {
-          onLockCell({ row: selectedCell.row, col: selectedCell.col });
-        }
-        if (mode === "edit") {
-          updateCellContent();
-          onUnlockCell({ row: selectedCell.row, col: selectedCell.col });
-          updateSelectedCell(
-            move(
+        if (!isEditing) {
+          // View mode → Edit mode
+          dispatch({
+            type: "LOCK_CELL",
+            pos: { row: selectedCell.row, col: selectedCell.col },
+          });
+        } else {
+          // Edit mode → View mode + move down
+          dispatch({ type: "COMMIT_CELL" });
+          dispatch({
+            type: "UNLOCK_CELL",
+            pos: { row: selectedCell.row, col: selectedCell.col },
+          });
+          dispatch({
+            type: "SELECT_CELL",
+            cell: move(
               matrix,
               { x: selectedCell.col, y: selectedCell.row },
               Direction.Down
-            )
-          );
+            ),
+          });
         }
       }
 
-      if (e.key === "Escape" && mode === "edit") {
+      if (e.key === "Escape" && isEditing) {
         e.preventDefault();
-        discardDraftValue(); // Cancel without saving
-        onUnlockCell({ row: selectedCell.row, col: selectedCell.col });
+        dispatch({ type: "DISCARD_DRAFT" });
+        dispatch({
+          type: "UNLOCK_CELL",
+          pos: { row: selectedCell.row, col: selectedCell.col },
+        });
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [
-    selectedCell,
-    mode,
-    matrix,
-    onLockCell,
-    onUnlockCell,
-    updateSelectedCell,
-    updateCellContent,
-    discardDraftValue,
-  ]);
+  }, [selectedCell, isEditing, matrix, dispatch]);
 
-  if (mode === "edit") {
+  if (isEditing) {
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+      const modifier = e.metaKey || e.ctrlKey;
+      const key = e.key.toLowerCase();
+
+      if (modifier && key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        dispatch({ type: "UNDO" });
+      } else if (modifier && ((key === "z" && e.shiftKey) || key === "y")) {
+        e.preventDefault();
+        dispatch({ type: "REDO" });
+      }
+    };
+
     return (
       <input
         ref={inputRef}
         value={draftValue ?? ""}
         onChange={(e) => {
-          setDraftValue(e.target.value);
+          dispatch({ type: "SET_DRAFT_VALUE", value: e.target.value });
         }}
+        onKeyDown={handleKeyDown}
         onBlur={() => {
           // Commit when clicking outside the input
-          updateCellContent();
-          onUnlockCell({ row: selectedCell!.row, col: selectedCell!.col });
+          dispatch({ type: "COMMIT_CELL" });
+          dispatch({
+            type: "UNLOCK_CELL",
+            pos: { row: selectedCell!.row, col: selectedCell!.col },
+          });
         }}
         style={{
           position: "absolute",

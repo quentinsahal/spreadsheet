@@ -4,17 +4,14 @@ import { useSpreadsheet } from "./SpreadsheetProvider";
 import { getFirstCell } from "./helpers";
 
 export function SpreadsheetCompute() {
-  const {
-    matrix,
-    selectedCell,
-    updateSelectedCell,
-    draftValue,
-    setDraftValue,
-  } = useSpreadsheet();
+  const { matrix, selectedCell, localLockedCell, draftValue, dispatch } =
+    useSpreadsheet();
 
   // Show draft value if editing, otherwise show cell value
   const displayValue =
     draftValue !== null ? draftValue : selectedCell?.value ?? "";
+
+  const isEditing = localLockedCell !== null;
 
   return (
     <Box
@@ -43,12 +40,20 @@ export function SpreadsheetCompute() {
         value={displayValue}
         onFocus={() => {
           if (!selectedCell) {
-            updateSelectedCell(getFirstCell(matrix));
+            dispatch({ type: "SELECT_CELL", cell: getFirstCell(matrix) });
+            return;
+          }
+          // Lock the cell when focusing the formula bar (if not already editing)
+          if (!isEditing) {
+            dispatch({
+              type: "LOCK_CELL",
+              pos: { row: selectedCell.row, col: selectedCell.col },
+            });
           }
         }}
         onChange={(e) => {
           if (selectedCell) {
-            setDraftValue(e.target.value);
+            dispatch({ type: "SET_DRAFT_VALUE", value: e.target.value });
           }
         }}
         size="small"

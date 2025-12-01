@@ -1,0 +1,4 @@
+{
+  "name": "Example fixture",
+  "description": "This is an example fixture file for Cypress tests"
+}

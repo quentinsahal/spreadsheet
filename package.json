@@ -8,7 +8,11 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cy:open": "cypress open",
+    "cy:run": "cypress run",
+    "test:e2e": "cypress run",
+    "test:e2e:dev": "cypress open"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -34,6 +38,7 @@
     "@types/ws": "^8.5.10",
     "@vitejs/plugin-react": "^5.0.4",
     "babel-plugin-react-compiler": "1.0.0",
+    "cypress": "15.7.0",
     "eslint": "^9.36.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.22",
